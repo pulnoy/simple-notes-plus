@@ -71,7 +71,7 @@ object NoteShareHelper {
             val file = assetStore.getAssetFile(name)
             if (!file.exists()) return@mapNotNull null
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        }
+        }.toList()
     }
 
     fun resolveShareableAudioUris(context: Context, textContent: String): List<Uri> {
