@@ -19,6 +19,9 @@
     <string name="fab_close">Fermer le menu</string>
     <string name="fab_text_note">Note textuelle</string>
     <string name="fab_checklist">Liste de tâches</string>
+    <string name="fab_image_note">Image</string>
+    <string name="fab_drawing_note">Dessin</string>
+    <string name="fab_audio_note">Audio</string>
     <string name="untitled">Sans titre</string>
     <string name="checklist_items_more">+%d de plus</string>
     <string name="sync_status_completed">Synchronisation terminée</string>

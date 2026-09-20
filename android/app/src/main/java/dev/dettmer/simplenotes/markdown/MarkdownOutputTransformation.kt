@@ -43,7 +43,7 @@ class MarkdownOutputTransformation(
         // Simple Notes+ affiche les images dans une galerie native au-dessus du texte.
         // Le stockage reste du Markdown compatible avec l'application d'origine et WebDAV,
         // mais son lien technique ne doit jamais apparaître dans l'éditeur.
-        IMAGE_LINK_REGEX.findAll(text).toList().asReversed().forEach { match ->
+        ATTACHMENT_LINK_REGEX.findAll(text).toList().asReversed().forEach { match ->
             replace(match.range.first, match.range.last + 1, "")
         }
     }
@@ -239,8 +239,9 @@ class MarkdownOutputTransformation(
     }
 }
 
-private val IMAGE_LINK_REGEX = Regex(
-    """!?\[[^]]*]\(\.assets/[A-Za-z0-9][A-Za-z0-9._-]*\)\n?"""
+private val ATTACHMENT_LINK_REGEX = Regex(
+    """(?:!\[[^]]*]|\[audio])\(\.assets/[A-Za-z0-9][A-Za-z0-9._-]*\)\n?""",
+    RegexOption.IGNORE_CASE
 )
 
 internal fun findCodeBlockRanges(text: String): List<IntRange> {

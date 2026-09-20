@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val DEFAULT_STROKE_WIDTH = 0.008f
+const val NEW_DRAWING_ASSET = "__simple_notes_plus_new_drawing__"
 
 private sealed interface AnnotationAction {
     data class StrokeAction(
@@ -86,7 +87,13 @@ fun ImageAnnotationDialog(
     val context = androidx.compose.ui.platform.LocalContext.current
     val store = remember(context) { AssetStore(context) }
     val bitmap = remember(assetName) {
-        BitmapFactory.decodeFile(store.getAssetFile(assetName).absolutePath)
+        if (assetName == NEW_DRAWING_ASSET) {
+            Bitmap.createBitmap(1600, 1200, Bitmap.Config.ARGB_8888).apply {
+                eraseColor(android.graphics.Color.WHITE)
+            }
+        } else {
+            BitmapFactory.decodeFile(store.getAssetFile(assetName).absolutePath)
+        }
     } ?: run {
         onDismiss()
         return

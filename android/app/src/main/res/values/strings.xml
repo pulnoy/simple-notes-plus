@@ -34,6 +34,9 @@
     <string name="fab_close">Close menu</string>
     <string name="fab_text_note">Text Note</string>
     <string name="fab_checklist">Checklist</string>
+    <string name="fab_image_note">Image</string>
+    <string name="fab_drawing_note">Drawing</string>
+    <string name="fab_audio_note">Audio</string>
     <!-- ============================= -->
     <!-- NOTE CARD                     -->
     <!-- ============================= -->

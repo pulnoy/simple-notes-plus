@@ -29,6 +29,7 @@ import com.google.android.material.color.DynamicColors
 import dev.dettmer.simplenotes.BuildConfig
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.models.SyncStatus
 import dev.dettmer.simplenotes.security.AppLock
 import dev.dettmer.simplenotes.security.AppLockGate
@@ -248,7 +249,7 @@ class ComposeMainActivity : FragmentActivity() {
                         viewModel = viewModel,
                         onOpenNote = { noteId -> openNoteEditor(noteId) },
                         onOpenSettings = { openSettings() },
-                        onCreateNote = { noteType, folder -> createNote(noteType, folder) }
+                        onCreateNote = { action, folder -> createNote(action, folder) }
                     )
 
                     // v1.8.0: Post-Update Changelog (shows once after update)
@@ -423,10 +424,11 @@ class ComposeMainActivity : FragmentActivity() {
         editorLauncher.launch(intent, options)
     }
 
-    private fun createNote(noteType: NoteType, folderName: String? = null) {
+    private fun createNote(action: NewNoteAction, folderName: String? = null) {
         cameFromEditor = true
         val intent = Intent(this, ComposeNoteEditorActivity::class.java)
-        intent.putExtra(ComposeNoteEditorActivity.EXTRA_NOTE_TYPE, noteType.name)
+        intent.putExtra(ComposeNoteEditorActivity.EXTRA_NOTE_TYPE, action.noteType.name)
+        intent.putExtra(ComposeNoteEditorActivity.EXTRA_NEW_NOTE_ACTION, action.name)
         folderName?.let { intent.putExtra(ComposeNoteEditorActivity.EXTRA_FOLDER, it) } // 🆕 v2.7.0 (Folders)
         val options = ActivityOptionsCompat.makeCustomAnimation(
             this,

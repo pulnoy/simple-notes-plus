@@ -1,7 +1,9 @@
 package dev.dettmer.simplenotes.ui.editor
 
+import android.Manifest
 import android.content.ClipData
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -126,6 +128,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import dev.dettmer.simplenotes.BuildConfig
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.markdown.HtmlToMarkdown
@@ -137,6 +140,7 @@ import dev.dettmer.simplenotes.markdown.buildImageAlt
 import dev.dettmer.simplenotes.markdown.computeImageRewrite
 import dev.dettmer.simplenotes.models.ChecklistSortOption
 import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.ui.editor.components.CheckedItemsSeparator
 import dev.dettmer.simplenotes.ui.editor.components.ChecklistItemRow
 import dev.dettmer.simplenotes.ui.editor.components.ChecklistSortDialog
@@ -496,7 +500,11 @@ private suspend fun traceCheckPlacement(listState: LazyListState, trace: CheckTr
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
-fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit) {
+fun NoteEditorScreen(
+    viewModel: NoteEditorViewModel,
+    initialAction: String? = null,
+    onNavigateBack: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val checklistItems by viewModel.checklistItems.collectAsState()
     // 🆕 (#126-Nachgang): Anzeigemodus der Statistik-Pille, notizübergreifend gemerkt.
@@ -586,12 +594,38 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     var annotationAssetName by remember { mutableStateOf<String?>(null) }
+    var initialActionConsumed by remember { mutableStateOf(false) }
+    var showAudioRecorder by remember { mutableStateOf(false) }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) showAudioRecorder = true
+        else scope.launch { snackbarHostState.showSnackbar("Autorise le microphone pour enregistrer une note audio") }
+    }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
         val uri = pendingCameraUri
         if (captured && uri != null) {
             scope.launch { attachAndInsertImages(viewModel, textFieldState, listOf(uri)) }
         }
         pendingCameraUri = null
+    }
+
+    LaunchedEffect(initialAction, uiState.isNewNote) {
+        if (!initialActionConsumed && uiState.isNewNote) {
+            when (runCatching { initialAction?.let(NewNoteAction::valueOf) }.getOrNull()) {
+                NewNoteAction.IMAGE -> showImageSourceDialog = true
+                NewNoteAction.DRAWING -> annotationAssetName = NEW_DRAWING_ASSET
+                NewNoteAction.AUDIO -> {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        showAudioRecorder = true
+                    } else {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+                else -> Unit
+            }
+            initialActionConsumed = true
+        }
     }
 
     // v2.0.0: Register content provider so saveOnBack() can read the latest
@@ -1099,6 +1133,14 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
                         val markdownTransformation = remember(linkColor, codeBackground, codeColor, markerColor, fontSizeMultiplier) {
                             MarkdownOutputTransformation(linkColor, codeBackground, codeColor, markerColor, fontSizeMultiplier)
                         }
+                        if (audioAssetNames(textFieldState.text.toString()).isNotEmpty()) {
+                            AudioAttachments(
+                                content = textFieldState.text.toString(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = Dimensions.SpacingMedium)
+                            )
+                        }
                         // 🔧 (#126-Nachgang): Inhalt und Statistik-Pille teilen sich eine Box —
                         // die Pille schwebt darüber, statt eine eigene 48-dp-Zeile zu belegen.
                         Box(
@@ -1282,9 +1324,28 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
             assetName = oldAssetName,
             onDismiss = { annotationAssetName = null },
             onSaved = { newAssetName ->
-                replaceImageAsset(textFieldState, oldAssetName, newAssetName)
+                if (oldAssetName == NEW_DRAWING_ASSET) {
+                    insertImageMarkdownOnOwnLine(
+                        textFieldState,
+                        newAssetName,
+                        viewModel.defaultImageSizePercent
+                    )
+                } else {
+                    replaceImageAsset(textFieldState, oldAssetName, newAssetName)
+                }
                 viewModel.updateContent(textFieldState.text.toString())
                 annotationAssetName = null
+            }
+        )
+    }
+
+    if (showAudioRecorder) {
+        AudioRecorderDialog(
+            onDismiss = { showAudioRecorder = false },
+            onSaved = { assetName ->
+                insertAudioMarkdown(textFieldState, assetName)
+                viewModel.updateContent(textFieldState.text.toString())
+                showAudioRecorder = false
             }
         )
     }
@@ -1386,6 +1447,15 @@ private fun replaceImageAsset(state: TextFieldState, oldName: String, newName: S
             replace(index, index + oldReference.length, newReference)
             index = asCharSequence().indexOf(oldReference, index + newReference.length)
         }
+    }
+}
+
+private fun insertAudioMarkdown(state: TextFieldState, assetName: String) {
+    state.edit {
+        val prefix = if (length == 0 || asCharSequence()[length - 1] == '\n') "" else "\n"
+        val token = prefix + audioMarkdown(assetName)
+        insert(length, token)
+        placeCursorAtEnd()
     }
 }
 

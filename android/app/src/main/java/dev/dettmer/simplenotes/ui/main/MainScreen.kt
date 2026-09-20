@@ -84,6 +84,7 @@ import dev.dettmer.simplenotes.models.Folder
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteFilter
 import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
 import dev.dettmer.simplenotes.sync.SyncStateManager
@@ -144,7 +145,7 @@ fun MainScreen(
     viewModel: MainViewModel,
     onOpenNote: (String?) -> Unit,
     onOpenSettings: () -> Unit,
-    onCreateNote: (NoteType, String?) -> Unit
+    onCreateNote: (NewNoteAction, String?) -> Unit
 ) {
     // 🆕 v2.7.0 (Folders): ordner-unabhängige Liste; jede Pane filtert selbst nach ihrem folderKey.
     val notes by viewModel.sortedNotesUnfoldered.collectAsState()
@@ -618,7 +619,7 @@ fun MainScreen(
         ) {
             NoteTypeFAB(
                 showCreateFolder = currentFolder == null,
-                onCreateNote = { type -> onCreateNote(type, currentFolder) },
+                onCreateNote = { action -> onCreateNote(action, currentFolder) },
                 onCreateFolder = { showCreateFolderDialog = true }
             )
         }

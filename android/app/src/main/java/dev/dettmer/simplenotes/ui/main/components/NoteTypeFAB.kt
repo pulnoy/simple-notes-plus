@@ -20,8 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -47,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.dettmer.simplenotes.R
-import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NewNoteAction
 
 /**
  * Expandable FAB with animated sub-actions (Breezy Weather style).
@@ -65,7 +68,7 @@ import dev.dettmer.simplenotes.models.NoteType
 fun NoteTypeFAB(
     modifier: Modifier = Modifier,
     showCreateFolder: Boolean = false, // 🆕 v2.7.0 (Folders): nur im Root true
-    onCreateNote: (NoteType) -> Unit,
+    onCreateNote: (NewNoteAction) -> Unit,
     onCreateFolder: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -146,14 +149,29 @@ fun NoteTypeFAB(
 
             val items = listOf(
                 FabSubAction(
+                    label = stringResource(R.string.fab_image_note),
+                    icon = Icons.Outlined.Image,
+                    action = NewNoteAction.IMAGE
+                ),
+                FabSubAction(
+                    label = stringResource(R.string.fab_drawing_note),
+                    icon = Icons.Outlined.Draw,
+                    action = NewNoteAction.DRAWING
+                ),
+                FabSubAction(
+                    label = stringResource(R.string.fab_audio_note),
+                    icon = Icons.Outlined.Mic,
+                    action = NewNoteAction.AUDIO
+                ),
+                FabSubAction(
                     label = stringResource(R.string.fab_text_note),
                     icon = Icons.Outlined.Description,
-                    noteType = NoteType.TEXT
+                    action = NewNoteAction.TEXT
                 ),
                 FabSubAction(
                     label = stringResource(R.string.fab_checklist),
                     icon = Icons.AutoMirrored.Outlined.List,
-                    noteType = NoteType.CHECKLIST
+                    action = NewNoteAction.CHECKLIST
                 )
             )
 
@@ -184,7 +202,7 @@ fun NoteTypeFAB(
                         scale = animatedScale,
                         alpha = animatedAlpha,
                         onClick = {
-                            onCreateNote(action.noteType)
+                            onCreateNote(action.action)
                         }
                     )
                 }
@@ -256,4 +274,4 @@ private fun FabSubActionRow(label: String, icon: ImageVector, scale: Float, alph
 /**
  * Data class for sub-action configuration.
  */
-private data class FabSubAction(val label: String, val icon: ImageVector, val noteType: NoteType)
+private data class FabSubAction(val label: String, val icon: ImageVector, val action: NewNoteAction)

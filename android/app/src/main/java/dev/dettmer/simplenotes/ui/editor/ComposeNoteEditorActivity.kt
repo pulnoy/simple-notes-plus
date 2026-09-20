@@ -82,6 +82,7 @@ class ComposeNoteEditorActivity : FragmentActivity() {
     companion object {
         const val EXTRA_NOTE_ID = "extra_note_id"
         const val EXTRA_NOTE_TYPE = "extra_note_type"
+        const val EXTRA_NEW_NOTE_ACTION = "extra_new_note_action"
         const val EXTRA_FOLDER = "extra_folder"
 
         // Issue #117: Markiert, dass der Editor aus einem Widget-Tap gestartet wurde —
@@ -249,6 +250,7 @@ class ComposeNoteEditorActivity : FragmentActivity() {
                         else -> {
                             NoteEditorScreen(
                                 viewModel = viewModel,
+                                initialAction = intent.getStringExtra(EXTRA_NEW_NOTE_ACTION),
                                 onNavigateBack = {
                                     if (fromWidget) navigateUpToNotesList() else finishWithTransition()
                                 }
