@@ -146,7 +146,6 @@ fun ImageAnnotationDialog(
                 AnnotationToolbar(
                     selectedColor = selectedColor,
                     highlighter = highlighter,
-                    pendingText = pendingText,
                     onColor = { selectedColor = it },
                     onHighlighter = { highlighter = !highlighter },
                     onText = { showTextDialog = true }
@@ -166,6 +165,7 @@ fun ImageAnnotationDialog(
                     currentPoints = currentPoints,
                     selectedColor = selectedColor,
                     highlighter = highlighter,
+                    pendingText = pendingText,
                     onCurrentPoints = { currentPoints = it },
                     onTextPlaced = { position ->
                         pendingText?.let { text ->
