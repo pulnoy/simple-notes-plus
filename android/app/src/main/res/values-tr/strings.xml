@@ -3,11 +3,11 @@
     <!-- ============================= -->
     <!-- APP IDENTITY                  -->
     <!-- ============================= -->
-    <string name="app_name">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
     <!-- ============================= -->
     <!-- MAIN SCREEN                   -->
     <!-- ============================= -->
-    <string name="main_title">Simple Notes</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Senkronize Et</string>
     <string name="action_settings">Ayarlar</string>
     <string name="action_close_selection">Seçimi Kapat</string>
@@ -364,7 +364,7 @@
     <!-- SETTINGS - ABOUT              -->
     <!-- ============================= -->
     <string name="about_settings_title">Bu Uygulama Hakkında</string>
-    <string name="about_app_name">Simple Notes Senkronizasyonu</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Sürüm %1$s (%2$d)</string>
     <string name="about_links_section">Bağlantılar</string>
     <string name="about_github_title">GitHub Deposu</string>
@@ -502,7 +502,7 @@
     <!-- ============================= -->
     <!-- WIDGETS v1.8.0                -->
     <!-- ============================= -->
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Ev ekranınızda bir not veya kontrol listesi gösterir</string>
     <string name="widget_config_title">Bir Not Seçin</string>
     <string name="widget_config_hint">Widget olarak eklemek için bir nota dokunun</string>

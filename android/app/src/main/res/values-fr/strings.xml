@@ -57,7 +57,11 @@
     <string name="sync_phase_deleting">Suppression du serveur…</string>
     <string name="sync_quota_warning">⚠️ La synchronisation a été retardée par la gestion de l\'alimentation d\'Android. Ouvrez l\'application régulièrement ou désactivez l\'optimisation de la batterie pour une synchronisation en arrière-plan fiable.</string>
     <string name="app_name">Simple Notes+</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="main_title">Simple Notes+</string>
+    <string name="sync_status_not_configured">Synchronisation non configurée</string>
+    <string name="sync_status_in_progress">Synchronisation en cours…</string>
+    <string name="sync_status_last_success">Dernière synchro : %1$s</string>
+    <string name="sync_status_never">Jamais synchronisé</string>
     <string name="action_sync">Synchroniser</string>
     <string name="sort_notes">Trier les notes</string>
     <string name="sort_ascending">Croissant</string>
@@ -480,7 +484,7 @@
     <string name="md_toolbar_rule">Ligne horizontale</string>
     <string name="md_toolbar_checklist">Liste de tâches</string>
     <string name="about_settings_title">À propos de l\'application</string>
-    <string name="about_app_name">Simple Notes Sync</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_links_section">Liens</string>
     <string name="about_app_section">Application</string>
@@ -657,7 +661,7 @@
     <string name="sync_parallel_connections_desc_1">Séquentiel (le plus lent, le plus sûr)</string>
     <string name="sync_parallel_connections_desc_3">Équilibré (3x plus rapide)</string>
     <string name="sync_parallel_connections_desc_5">Maximum (5x plus rapide)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Afficher une note ou une liste de tâches sur votre écran d\'accueil</string>
     <string name="new_note_widget_name">Nouvelle note</string>
     <string name="new_note_widget_description">Créer rapidement une nouvelle note ou liste de tâches</string>

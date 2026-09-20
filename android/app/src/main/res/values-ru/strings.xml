@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Синхронизация</string>
     <string name="action_settings">Настройки</string>
     <string name="action_close_selection">Снять выделение</string>
@@ -329,7 +329,7 @@
     <string name="md_toolbar_rule">Горизонтальная линия</string>
     <string name="md_toolbar_checklist">Чек-лист</string>
     <string name="about_settings_title">О приложении</string>
-    <string name="about_app_name">Синхронизация Simple Notes</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Версия %1$s (%2$d)</string>
     <string name="about_links_section">Ссылки</string>
     <string name="about_github_title">Репозиторий GitHub</string>
@@ -414,7 +414,7 @@
     <string name="sync_parallel_connections_desc_1">Последовательное (самое медленное, самое безопасное)</string>
     <string name="sync_parallel_connections_desc_3">Сбалансированное (в 3 раза быстрее)</string>
     <string name="sync_parallel_connections_desc_5">Максимальное (в 5 раз быстрее)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Отображение заметки или чек-листа на главном экране</string>
     <string name="new_note_widget_name">Новая заметка</string>
     <string name="new_note_widget_description">Быстрое создание новой заметки или чек-листа</string>

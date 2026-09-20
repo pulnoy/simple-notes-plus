@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.material.icons.Icons
@@ -55,6 +56,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -78,6 +80,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.zIndex
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.Folder
@@ -105,6 +108,8 @@ import dev.dettmer.simplenotes.ui.main.components.SyncStatusLegendDialog
 import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
 import dev.dettmer.simplenotes.utils.ActivityLog
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 private const val TIMESTAMP_UPDATE_INTERVAL_MS = 30_000L
 
@@ -240,10 +245,14 @@ fun MainScreen(
     }
 
     // Compute isSyncing once
-    val isSyncing = syncState == SyncStateManager.SyncState.SYNCING
+    val isSyncing = syncState == SyncStateManager.SyncState.SYNCING ||
+        syncState == SyncStateManager.SyncState.SYNCING_SILENT
 
     val isSyncAvailable = isServerConfigured
     val canSync = isSyncAvailable && !isSyncing
+    val lastSuccessfulSync = remember(syncState, timestampTicker) {
+        viewModel.getLastSuccessfulSyncTimestamp()
+    }
 
     // Handle snackbar events from ViewModel
     LaunchedEffect(Unit) {
@@ -376,6 +385,13 @@ fun MainScreen(
                         SyncProgressBanner(
                             progress = syncProgress,
                             modifier = Modifier.fillMaxWidth()
+                        )
+
+                        SyncStatusRow(
+                            isConfigured = isSyncAvailable,
+                            isSyncing = isSyncing,
+                            lastSuccessfulSync = lastSuccessfulSync,
+                            onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) }
                         )
 
                         // 🆕 v1.9.0 (F06): Filter Chip Row
@@ -697,6 +713,42 @@ private fun TopBarActions(
     }
     IconButton(onClick = onSettingsClick) {
         Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.action_settings))
+    }
+}
+
+@Composable
+private fun SyncStatusRow(
+    isConfigured: Boolean,
+    isSyncing: Boolean,
+    lastSuccessfulSync: Long,
+    onSyncClick: () -> Unit
+) {
+    val status = when {
+        !isConfigured -> stringResource(R.string.sync_status_not_configured)
+        isSyncing -> stringResource(R.string.sync_status_in_progress)
+        lastSuccessfulSync > 0L -> stringResource(
+            R.string.sync_status_last_success,
+            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(lastSuccessfulSync))
+        )
+        else -> stringResource(R.string.sync_status_never)
+    }
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = onSyncClick, enabled = isConfigured && !isSyncing) {
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+            Text(text = stringResource(R.string.action_sync))
+        }
     }
 }
 

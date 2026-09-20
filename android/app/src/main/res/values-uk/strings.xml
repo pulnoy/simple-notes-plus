@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Синхронізація</string>
     <string name="action_settings">Налаштування</string>
     <string name="action_close_selection">Закрити вибір</string>
@@ -281,7 +281,7 @@
     <string name="md_toolbar_list">Список</string>
     <string name="md_toolbar_rule">Роздільник</string>
     <string name="about_settings_title">Про цей Застосунок</string>
-    <string name="about_app_name">Simple Notes Sync</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Версія %1$s (%2$d)</string>
     <string name="about_links_section">Посилання</string>
     <string name="about_github_title">Репозиторій GitHub</string>
@@ -403,7 +403,7 @@
     <string name="sync_parallel_connections_desc_1">Послідовна (повільніша і безпечніша)</string>
     <string name="sync_parallel_connections_desc_3">Збалансована (утричі швидша)</string>
     <string name="sync_parallel_connections_desc_5">Максимальна (уп\'ятеро швидше)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Показувати нотатку або чеклист на вашому домашньому екрані</string>
     <string name="widget_config_title">Оберіть Нотатку</string>
     <string name="widget_config_hint">Доторкніться нотатки, щоб додати її як віджет</string>

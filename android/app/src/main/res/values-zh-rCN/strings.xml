@@ -3,11 +3,11 @@
     <!-- ============================= -->
     <!-- APP IDENTITY                  -->
     <!-- ============================= -->
-    <string name="app_name">简单笔记</string>
+    <string name="app_name">Simple Notes+</string>
     <!-- ============================= -->
     <!-- MAIN SCREEN                   -->
     <!-- ============================= -->
-    <string name="main_title">简单笔记</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">同步</string>
     <string name="action_settings">设置</string>
     <string name="action_close_selection">关闭选择</string>
@@ -360,7 +360,7 @@
     <!-- SETTINGS - ABOUT              -->
     <!-- ============================= -->
     <string name="about_settings_title">关于这个应用</string>
-    <string name="about_app_name">Simple Notes Sync</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">版本 %1$s (%2$d)</string>
     <string name="about_links_section">链接</string>
     <string name="about_github_title">GitHub 仓库</string>
@@ -501,7 +501,7 @@
     <!-- ============================= -->
     <!-- WIDGETS v1.8.0                -->
     <!-- ============================= -->
-    <string name="widget_name">简单笔记</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">在主屏幕上显示一个笔记或清单</string>
     <string name="widget_config_title">选择笔记</string>
     <string name="widget_config_hint">点击一个笔记添加它为微件</string>

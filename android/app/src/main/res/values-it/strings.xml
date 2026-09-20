@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Sincronizzazione</string>
     <string name="action_settings">Impostazioni</string>
     <string name="action_close_selection">Chiudi selezione</string>
@@ -479,7 +479,7 @@
     <string name="md_toolbar_rule">Linea orizzontale</string>
     <string name="md_toolbar_checklist">Checklist</string>
     <string name="about_settings_title">Info App</string>
-    <string name="about_app_name">Sincronizzazione Simple Notes</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Versione %1$s (%2$d)</string>
     <string name="about_links_section">Link</string>
     <string name="about_app_section">App</string>
@@ -656,7 +656,7 @@
     <string name="sync_parallel_connections_desc_1">Sequenziale (più lenta, più sicura)</string>
     <string name="sync_parallel_connections_desc_3">Bilanciato (3x più veloce)</string>
     <string name="sync_parallel_connections_desc_5">Massimo (5x più veloce)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Mostra una nota o checklist sulla schermata home</string>
     <string name="new_note_widget_name">Nuova nota</string>
     <string name="new_note_widget_description">Crea velocemente una nuova nota o checklist</string>

@@ -511,6 +511,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _syncState = MutableStateFlow(SyncStateManager.SyncState.IDLE)
     val syncState: StateFlow<SyncStateManager.SyncState> = _syncState.asStateFlow()
 
+    fun getLastSuccessfulSyncTimestamp(): Long =
+        prefs.getLong(Constants.KEY_LAST_SUCCESSFUL_SYNC, 0L)
+
     // ═══════════════════════════════════════════════════════════════════════
     // UI Events
     // ═══════════════════════════════════════════════════════════════════════

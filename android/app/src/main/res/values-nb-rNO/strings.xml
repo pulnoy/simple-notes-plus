@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Synk</string>
     <string name="action_settings">Innstillinger</string>
     <string name="action_close_selection">Lukk valg</string>
@@ -336,7 +336,7 @@
     <string name="md_toolbar_rule">Horisontal linje</string>
     <string name="md_toolbar_checklist">Sjekkliste</string>
     <string name="about_settings_title">Om denne appen</string>
-    <string name="about_app_name">Simple Notes Sync</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Versjon %1$s (%2$d)</string>
     <string name="about_links_section">Lenker</string>
     <string name="about_github_title">GitHub repository</string>
@@ -447,7 +447,7 @@
     <string name="sync_parallel_connections_desc_1">Sekvensiell (tregest, tryggest)</string>
     <string name="sync_parallel_connections_desc_3">Balansert (Tre ganger raskere)</string>
     <string name="sync_parallel_connections_desc_5">Maksimum (Fem ganger raskere)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Vis et notat eller sjekkliste på hjemmeskjermen</string>
     <string name="new_note_widget_name">Nytt notat</string>
     <string name="new_note_widget_description">Lag et nytt notat eller sjekkliste kjapt</string>

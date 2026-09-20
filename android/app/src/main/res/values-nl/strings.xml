@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Synchroniseren</string>
     <string name="action_settings">Instellingen</string>
     <string name="action_close_selection">Sluit selectie</string>

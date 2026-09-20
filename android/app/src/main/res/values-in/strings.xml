@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Simple Notes</string>
-    <string name="main_title">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
+    <string name="main_title">Simple Notes+</string>
     <string name="action_sync">Sinkronisasi</string>
     <string name="action_settings">Pengaturan</string>
     <string name="action_close_selection">Tutup pilihan</string>
@@ -335,7 +335,7 @@
     <string name="md_toolbar_rule">Garis horizontal</string>
     <string name="md_toolbar_checklist">Daftar Periksa</string>
     <string name="about_settings_title">Tentang Aplikasi Ini</string>
-    <string name="about_app_name">Simple Notes Sync</string>
+    <string name="about_app_name">Simple Notes+</string>
     <string name="about_version">Versi %1$s (%2$d)</string>
     <string name="about_links_section">Tautan</string>
     <string name="about_github_title">Repositori GitHub</string>
@@ -440,7 +440,7 @@
     <string name="sync_parallel_connections_desc_1">Berurutan (paling lambat, paling aman)</string>
     <string name="sync_parallel_connections_desc_3">Seimbang (3x lebih cepat)</string>
     <string name="sync_parallel_connections_desc_5">Maksimum (5x lebih cepat)</string>
-    <string name="widget_name">Simple Notes</string>
+    <string name="widget_name">Simple Notes+</string>
     <string name="widget_description">Tampilkan catatan atau daftar periksa di layar beranda Anda</string>
     <string name="new_note_widget_name">Catatan Baru</string>
     <string name="new_note_widget_description">Buat catatan atau daftar periksa baru dengan cepat</string>
