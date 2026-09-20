@@ -4,6 +4,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NoteShareHelperTest {
+    @Test fun `shared text hides audio asset path`() {
+        assertEquals(
+            "Avant\nAudio joint\nAprès",
+            NoteShareHelper.formatTextForShare("Avant\n[audio](.assets/voice.m4a)\nAprès") { "[img]" }
+        )
+    }
+
     @Test fun `replaces image tags with placeholders at their position`() {
         val text = "Erster Absatz\n\n![|75%|right](.assets/a.webp)\n\nZweiter Absatz\n\n![](.assets/b.webp)"
         val result = NoteShareHelper.formatTextForShare(text) { alt ->

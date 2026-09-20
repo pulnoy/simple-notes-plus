@@ -239,7 +239,7 @@ class MarkdownOutputTransformation(
     }
 }
 
-private val ATTACHMENT_LINK_REGEX = Regex(
+internal val ATTACHMENT_LINK_REGEX = Regex(
     """(?:!\[[^]]*]|\[audio])\(\.assets/[A-Za-z0-9][A-Za-z0-9._-]*\)\n?""",
     RegexOption.IGNORE_CASE
 )

@@ -42,10 +42,20 @@ class AssetReferencesTest {
         )
     }
 
-    @Test fun `no match for plain link without image syntax`() {
+    @Test fun `audio link and image reference are both retained`() {
         assertEquals(
-            emptySet<String>(),
-            AssetReferences.extractAssetNames("[desc](.assets/x.webp)")
+            setOf("recording.m4a", "x.webp"),
+            AssetReferences.extractAssetNames("[audio](.assets/recording.m4a)\n![desc](.assets/x.webp)")
+        )
+    }
+
+    @Test fun `audio in trash and archive remains referenced`() {
+        assertEquals(
+            setOf("trash.m4a", "archive.m4a"),
+            AssetReferences.extractAllReferenced(listOf(
+                note("[audio](.assets/trash.m4a)", trashedAt = 1L),
+                note("[audio](.assets/archive.m4a)", archivedAt = 1L)
+            ))
         )
     }
 

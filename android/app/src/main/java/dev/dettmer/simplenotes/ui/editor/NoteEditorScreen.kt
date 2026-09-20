@@ -1136,6 +1136,10 @@ fun NoteEditorScreen(
                         if (audioAssetNames(textFieldState.text.toString()).isNotEmpty()) {
                             AudioAttachments(
                                 content = textFieldState.text.toString(),
+                                onRemove = { name ->
+                                    removeAudioMarkdown(textFieldState, name)
+                                    viewModel.updateContent(textFieldState.text.toString())
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = Dimensions.SpacingMedium)
@@ -1456,6 +1460,14 @@ private fun insertAudioMarkdown(state: TextFieldState, assetName: String) {
         val token = prefix + audioMarkdown(assetName)
         insert(length, token)
         placeCursorAtEnd()
+    }
+}
+
+private fun removeAudioMarkdown(state: TextFieldState, assetName: String) {
+    val token = audioMarkdown(assetName)
+    state.edit {
+        val index = asCharSequence().indexOf(token)
+        if (index >= 0) replace(index, index + token.length, "")
     }
 }
 

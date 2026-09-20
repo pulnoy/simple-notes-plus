@@ -67,17 +67,28 @@ object NoteShareHelper {
      */
     fun resolveShareableImageUris(context: Context, textContent: String): List<Uri> {
         val assetStore = AssetStore(context)
-        return AssetReferences.extractAssetNames(textContent).mapNotNull { name ->
+        return MarkdownEngine.IMAGE_REGEX.findAll(textContent).map { it.groupValues[2] }.distinct().mapNotNull { name ->
             val file = assetStore.getAssetFile(name)
             if (!file.exists()) return@mapNotNull null
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         }
     }
 
+    fun resolveShareableAudioUris(context: Context, textContent: String): List<Uri> {
+        val assetStore = AssetStore(context)
+        val regex = Regex("""\[audio]\(\.assets/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:m4a|mp4|aac|wav|ogg))\)""", RegexOption.IGNORE_CASE)
+        return regex.findAll(textContent).map { it.groupValues[1] }.distinct().mapNotNull { name ->
+            val file = assetStore.getAssetFile(name)
+            if (!file.exists()) return@mapNotNull null
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }.toList()
+    }
+
     /** Ersetzt Bild-Tags durch [placeholder]-Text (Alt-Text ohne Größen-/Align-Tokens). */
     fun formatTextForShare(textContent: String, placeholder: (cleanAlt: String) -> String): String =
         MarkdownEngine.IMAGE_REGEX
             .replace(textContent) { m -> placeholder(parseImageAlt(m.groupValues[1]).cleanAlt) }
+            .replace(Regex("""\[audio]\(\.assets/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:m4a|mp4|aac|wav|ogg)\)""", RegexOption.IGNORE_CASE), "Audio joint")
             .replace(Regex("""\n{3,}"""), "\n\n")
             .trim()
 }

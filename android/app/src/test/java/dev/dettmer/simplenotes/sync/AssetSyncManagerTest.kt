@@ -25,6 +25,19 @@ import org.junit.Before
 import org.junit.Test
 
 class AssetSyncManagerTest {
+    @Test fun `m4a referenced by note uploads through asset sync`() = runBlocking {
+        assetStore.saveAssetAs(byteArrayOf(1, 2, 3), "voice.m4a")
+        val webdav = mockk<WebDavClient>(relaxed = true)
+        val uploadedUrl = slot<String>()
+        every { webdav.put(capture(uploadedUrl), any<ByteArray>(), any()) } returns null
+
+        val referenced = dev.dettmer.simplenotes.utils.AssetReferences.extractAssetNames(
+            "[audio](.assets/voice.m4a)"
+        )
+        assertEquals(1, manager.uploadMissing(webdav, "http://server/notes", referenced, emptyMap()))
+        assertTrue(uploadedUrl.captured.endsWith("voice.m4a"))
+    }
+
     private lateinit var tmpDir: File
     private lateinit var assetStore: AssetStore
     private lateinit var prefs: SharedPreferences

@@ -164,14 +164,14 @@ fun NoteTypeFAB(
                     action = NewNoteAction.AUDIO
                 ),
                 FabSubAction(
-                    label = stringResource(R.string.fab_text_note),
-                    icon = Icons.Outlined.Description,
-                    action = NewNoteAction.TEXT
-                ),
-                FabSubAction(
                     label = stringResource(R.string.fab_checklist),
                     icon = Icons.AutoMirrored.Outlined.List,
                     action = NewNoteAction.CHECKLIST
+                ),
+                FabSubAction(
+                    label = stringResource(R.string.fab_text_note),
+                    icon = Icons.Outlined.Description,
+                    action = NewNoteAction.TEXT
                 )
             )
 

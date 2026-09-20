@@ -11,6 +11,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MarkdownOutputTransformationTest {
+    @Test fun `hides technical image and audio links`() {
+        val content = "Texte\n![](.assets/photo.webp)\n[audio](.assets/voice.m4a)\nSuite"
+        assertEquals("Texte\nSuite", ATTACHMENT_LINK_REGEX.replace(content, ""))
+    }
+
     private val linkColor = Color(0xFF0000FFu)
     private val codeBg = Color(0xFFAAAAAAu)
     private val codeColor = Color(0xFF333333u)

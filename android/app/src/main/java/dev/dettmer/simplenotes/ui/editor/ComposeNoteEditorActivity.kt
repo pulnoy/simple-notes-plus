@@ -415,17 +415,24 @@ class ComposeNoteEditorActivity : FragmentActivity() {
      */
     private fun handleShareAsText(event: NoteEditorEvent.ShareAsText) {
         val imageUris = NoteShareHelper.resolveShareableImageUris(this, event.text)
-        Logger.d(TAG, "handleShareAsText: textLength=${event.text.length}, imageUris=${imageUris.size}")
+        val audioUris = NoteShareHelper.resolveShareableAudioUris(this, event.text)
+        val assetUris = imageUris + audioUris
+        val assetMime = when {
+            imageUris.isNotEmpty() && audioUris.isNotEmpty() -> "*/*"
+            audioUris.isNotEmpty() -> "audio/*"
+            else -> "image/*"
+        }
+        Logger.d(TAG, "handleShareAsText: textLength=${event.text.length}, assets=${assetUris.size}")
         // Bilder gehen als eigener Stream raus — der rohe ![alt](.assets/...)-Tag im Text wird
         // durch einen Platzhalter ersetzt (Duplikat wäre sonst Bild + Tag-Text beim Empfänger).
-        val shareText = if (imageUris.isEmpty()) {
+        val shareText = if (assetUris.isEmpty()) {
             event.text
         } else {
             NoteShareHelper.formatTextForShare(event.text) { alt ->
                 if (alt.isBlank()) getString(R.string.share_image_placeholder) else getString(R.string.share_image_placeholder_alt, alt)
             }
         }
-        val shareIntent = when (imageUris.size) {
+        val shareIntent = when (assetUris.size) {
             0 -> Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, event.title)
@@ -436,23 +443,23 @@ class ComposeNoteEditorActivity : FragmentActivity() {
             // lesen. ACTION_SEND_MULTIPLE ist für mehrere Streams gedacht; die meisten Empfänger
             // ignorieren dort EXTRA_TEXT komplett.
             1 -> Intent(Intent.ACTION_SEND).apply {
-                type = "image/*"
+                type = assetMime
                 putExtra(Intent.EXTRA_SUBJECT, event.title)
                 putExtra(Intent.EXTRA_TEXT, shareText)
-                putExtra(Intent.EXTRA_STREAM, imageUris.first())
-                clipData = ClipData.newUri(contentResolver, "", imageUris.first())
+                putExtra(Intent.EXTRA_STREAM, assetUris.first())
+                clipData = ClipData.newUri(contentResolver, "", assetUris.first())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             else -> Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-                type = "image/*"
+                type = assetMime
                 putExtra(Intent.EXTRA_SUBJECT, event.title)
                 // Plain String statt ArrayList<CharSequence>: die AOSP-Doku beschreibt Letzteres
                 // für ACTION_SEND_MULTIPLE, aber praktisch jeder Empfänger liest EXTRA_TEXT per
                 // getStringExtra() — das liefert bei einer ArrayList null (leerer Body).
                 putExtra(Intent.EXTRA_TEXT, shareText)
-                putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(imageUris))
-                clipData = ClipData.newUri(contentResolver, "", imageUris.first()).apply {
-                    imageUris.drop(1).forEach { addItem(ClipData.Item(it)) }
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(assetUris))
+                clipData = ClipData.newUri(contentResolver, "", assetUris.first()).apply {
+                    assetUris.drop(1).forEach { addItem(ClipData.Item(it)) }
                 }
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }

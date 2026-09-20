@@ -2,6 +2,7 @@ package dev.dettmer.simplenotes.ui.editor
 
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +38,7 @@ import dev.dettmer.simplenotes.storage.AssetStore
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private val AUDIO_REFERENCE_REGEX = Regex(
     """\[audio]\(\.assets/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:m4a|mp4|aac|wav|ogg))\)""",
@@ -57,20 +61,35 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     var recording by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var startedAt by remember { mutableStateOf(0L) }
+    var elapsedSeconds by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(recording) {
+        while (recording) {
+            elapsedSeconds = (SystemClock.elapsedRealtime() - startedAt) / 1000
+            delay(250)
+        }
+    }
 
     fun stopAndRelease(): File? {
         val file = outputFile
-        runCatching { recorder?.stop() }.onFailure { error = "Enregistrement trop court" }
-        recorder?.release()
+        val stopped = runCatching { recorder?.stop() }.isSuccess
+        runCatching { recorder?.release() }
         recorder = null
         recording = false
-        return file?.takeIf { it.exists() && it.length() > 0L }
+        outputFile = null
+        if (!stopped || SystemClock.elapsedRealtime() - startedAt < 1000 || file == null || !file.exists() || file.length() == 0L) {
+            file?.delete()
+            error = "Enregistrement trop court ou interrompu. Réessaie."
+            return null
+        }
+        return file
     }
 
     DisposableEffect(Unit) {
         onDispose {
             if (recording) runCatching { recorder?.stop() }
-            recorder?.release()
+            runCatching { recorder?.release() }
             outputFile?.delete()
         }
     }
@@ -81,7 +100,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
         title = { Text(if (recording) "Enregistrement en cours…" else "Note audio") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(if (recording) "Parle normalement, puis touche Arrêter." else "L’audio sera joint à la note.")
+                Text(if (recording) "Enregistrement · ${elapsedSeconds} s" else "L’audio sera joint à la note.")
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Button(
                     enabled = !saving,
@@ -89,27 +108,36 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
                         if (!recording) {
                             error = null
                             val file = File(context.cacheDir, "audio-${UUID.randomUUID()}.m4a")
-                            val next = MediaRecorder().apply {
-                                setAudioSource(MediaRecorder.AudioSource.MIC)
-                                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                                setAudioEncodingBitRate(128_000)
-                                setAudioSamplingRate(44_100)
-                                setOutputFile(file.absolutePath)
-                                prepare()
-                                start()
+                            val next = MediaRecorder()
+                            val started = runCatching {
+                                next.setAudioSource(MediaRecorder.AudioSource.MIC)
+                                next.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                                next.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                                next.setAudioEncodingBitRate(128_000)
+                                next.setAudioSamplingRate(44_100)
+                                next.setOutputFile(file.absolutePath)
+                                next.prepare()
+                                next.start()
+                            }.isSuccess
+                            if (!started) {
+                                runCatching { next.release() }
+                                file.delete()
+                                error = "Impossible de démarrer l’enregistrement."
+                            } else {
+                                outputFile = file
+                                recorder = next
+                                startedAt = SystemClock.elapsedRealtime()
+                                elapsedSeconds = 0
+                                recording = true
                             }
-                            outputFile = file
-                            recorder = next
-                            recording = true
                         } else {
                             val file = stopAndRelease() ?: return@Button
                             saving = true
                             scope.launch {
-                                val name = store.saveAsset(file.readBytes(), "m4a")
+                                val result = runCatching { store.saveAsset(file.readBytes(), "m4a") }
                                 file.delete()
                                 saving = false
-                                onSaved(name)
+                                result.onSuccess(onSaved).onFailure { error = "Impossible de joindre l’audio." }
                             }
                         }
                     }
@@ -130,7 +158,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
 }
 
 @Composable
-fun AudioAttachments(content: String, modifier: Modifier = Modifier) {
+fun AudioAttachments(content: String, onRemove: (String) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store = remember(context) { AssetStore(context) }
     val names = remember(content) { audioAssetNames(content) }
@@ -144,22 +172,27 @@ fun AudioAttachments(content: String, modifier: Modifier = Modifier) {
                 return@forEach
             }
             var playing by remember(name) { mutableStateOf(false) }
-            val player = remember(name) {
-                MediaPlayer().apply {
-                    setDataSource(file.absolutePath)
-                    prepare()
-                    setOnCompletionListener { playing = false }
+            val player = remember(name, file.absolutePath) {
+                val candidate = MediaPlayer()
+                runCatching {
+                    candidate.setDataSource(file.absolutePath)
+                    candidate.prepare()
+                    candidate.setOnCompletionListener { playing = false }
+                    candidate
+                }.getOrElse {
+                    candidate.release()
+                    null
                 }
             }
-            DisposableEffect(player) { onDispose { player.release() } }
+            DisposableEffect(player) { onDispose { player?.release() } }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
-                        if (playing) player.pause() else player.start()
-                        playing = !playing
+                    IconButton(enabled = player != null, onClick = {
+                        val success = runCatching { if (playing) player?.pause() else player?.start() }.isSuccess
+                        if (success) playing = !playing
                     }) {
                         Icon(
                             if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -168,7 +201,10 @@ fun AudioAttachments(content: String, modifier: Modifier = Modifier) {
                     }
                     Column {
                         Text("Note audio", style = MaterialTheme.typography.titleSmall)
-                        Text(name, style = MaterialTheme.typography.bodySmall)
+                        Text(if (player == null) "Lecture indisponible" else "${(player.duration / 1000)} s", style = MaterialTheme.typography.bodySmall)
+                    }
+                    IconButton(onClick = { onRemove(name) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Supprimer l’audio")
                     }
                 }
             }
