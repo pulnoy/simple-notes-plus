@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -124,6 +125,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.content.FileProvider
 import dev.dettmer.simplenotes.BuildConfig
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.markdown.HtmlToMarkdown
@@ -149,6 +151,8 @@ import dev.dettmer.simplenotes.utils.AssetReferences
 import dev.dettmer.simplenotes.utils.Constants
 import dev.dettmer.simplenotes.utils.Logger
 import dev.dettmer.simplenotes.utils.NoteShareHelper
+import java.io.File
+import java.util.UUID
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -578,6 +582,17 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
     // 🆕 Bild-Attachments: Photo-Picker → ViewModel verarbeitet + speichert → Markdown einfügen
     val isAttachingImage by viewModel.isAttachingImage.collectAsState()
     val imagePickerLauncher = rememberImagePickerLauncher(viewModel, textFieldState, scope)
+    val context = LocalContext.current
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var annotationAssetName by remember { mutableStateOf<String?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        val uri = pendingCameraUri
+        if (captured && uri != null) {
+            scope.launch { attachAndInsertImages(viewModel, textFieldState, listOf(uri)) }
+        }
+        pendingCameraUri = null
+    }
 
     // v2.0.0: Register content provider so saveOnBack() can read the latest
     // TextFieldState content directly — avoids snapshotFlow race condition
@@ -1114,19 +1129,37 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
                                     }
                                 )
                             } else {
-                                // Content Input for TEXT notes
-                                TextNoteContent(
-                                    textFieldState = textFieldState,
-                                    onContentChange = { viewModel.updateContent(it) },
-                                    focusRequester = contentFocusRequester,
-                                    outputTransformation = markdownTransformation,
-                                    // 🆕 v2.12.0: Bilder aus der Zwischenablage
-                                    onPasteImages = { uris ->
-                                        scope.launch { attachAndInsertImages(viewModel, textFieldState, uris) }
-                                    },
-                                    onFocusChanged = { isContentFocused = it },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                // Simple Notes+ : les images restent visibles pendant la saisie.
+                                // Le champ conserve en interne les liens Markdown pour rester
+                                // compatible avec WebDAV, mais l'OutputTransformation les masque.
+                                val editorImageBlocks = MarkdownEngine.parse(textFieldState.text.toString())
+                                    .filterIsInstance<MarkdownEngine.MarkdownBlock.Image>()
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    if (editorImageBlocks.isNotEmpty()) {
+                                        MarkdownPreview(
+                                            blocks = editorImageBlocks,
+                                            scrollEnabled = true,
+                                            onImageTap = { annotationAssetName = it.assetName },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 260.dp)
+                                        )
+                                    }
+                                    TextNoteContent(
+                                        textFieldState = textFieldState,
+                                        onContentChange = { viewModel.updateContent(it) },
+                                        focusRequester = contentFocusRequester,
+                                        outputTransformation = markdownTransformation,
+                                        // 🆕 v2.12.0: Bilder aus der Zwischenablage
+                                        onPasteImages = { uris ->
+                                            scope.launch { attachAndInsertImages(viewModel, textFieldState, uris) }
+                                        },
+                                        onFocusChanged = { isContentFocused = it },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    )
+                                }
                             }
 
                             // 🆕 v2.16.0 (Issue #126): Wort-/Zeichenzahl, Tippen wechselt.
@@ -1146,11 +1179,7 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
                         if (!isPreviewMode && isContentFocused) {
                             MarkdownToolbar(
                                 textFieldState = textFieldState,
-                                onImageClick = {
-                                    imagePickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
+                                onImageClick = { showImageSourceDialog = true },
                                 isAttachingImage = isAttachingImage
                             )
                         }
@@ -1211,6 +1240,53 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
                 }
             }
         }
+    }
+
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text(stringResource(R.string.image_source_title)) },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            val uri = createCameraPhotoUri(context)
+                            pendingCameraUri = uri
+                            cameraLauncher.launch(uri)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.image_source_camera)) }
+                    TextButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.image_source_gallery)) }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
+    annotationAssetName?.let { oldAssetName ->
+        ImageAnnotationDialog(
+            assetName = oldAssetName,
+            onDismiss = { annotationAssetName = null },
+            onSaved = { newAssetName ->
+                replaceImageAsset(textFieldState, oldAssetName, newAssetName)
+                viewModel.updateContent(textFieldState.text.toString())
+                annotationAssetName = null
+            }
+        )
     }
 
     // 🔀 v1.8.0: Checklist Sort Dialog
@@ -1292,6 +1368,24 @@ fun NoteEditorScreen(viewModel: NoteEditorViewModel, onNavigateBack: () -> Unit)
                 copyToChecklistItemId = null
             }
         )
+    }
+}
+
+private fun createCameraPhotoUri(context: Context): Uri {
+    val directory = File(context.cacheDir, "camera_photos").apply { mkdirs() }
+    val file = File(directory, "photo-${UUID.randomUUID()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+private fun replaceImageAsset(state: TextFieldState, oldName: String, newName: String) {
+    val oldReference = ".assets/$oldName"
+    val newReference = ".assets/$newName"
+    state.edit {
+        var index = asCharSequence().indexOf(oldReference)
+        while (index >= 0) {
+            replace(index, index + oldReference.length, newReference)
+            index = asCharSequence().indexOf(oldReference, index + newReference.length)
+        }
     }
 }
 

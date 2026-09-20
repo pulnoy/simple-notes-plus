@@ -53,7 +53,7 @@
     <string name="sync_phase_downloading">Téléchargement…</string>
     <string name="sync_phase_deleting">Suppression du serveur…</string>
     <string name="sync_quota_warning">⚠️ La synchronisation a été retardée par la gestion de l\'alimentation d\'Android. Ouvrez l\'application régulièrement ou désactivez l\'optimisation de la batterie pour une synchronisation en arrière-plan fiable.</string>
-    <string name="app_name">Simple Notes</string>
+    <string name="app_name">Simple Notes+</string>
     <string name="main_title">Simple Notes</string>
     <string name="action_sync">Synchroniser</string>
     <string name="sort_notes">Trier les notes</string>
@@ -797,4 +797,7 @@
     <string name="notes_list_widget_preview_content_2">Discuter de la feuille de route et des prochaines étapes</string>
     <string name="notes_list_widget_preview_title_3">Idées</string>
     <string name="notes_list_widget_preview_content_3">Nouveaux concepts de fonctionnalités pour le prochain sprint</string>
+    <string name="image_source_title">Ajouter une image</string>
+    <string name="image_source_camera">Prendre une photo</string>
+    <string name="image_source_gallery">Choisir dans la galerie</string>
 </resources>

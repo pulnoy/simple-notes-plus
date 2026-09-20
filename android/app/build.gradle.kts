@@ -17,11 +17,12 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.dettmer.simplenotes"
+        // Fork multimédia installable à côté de l'application officielle.
+        applicationId = "fr.mswgillian.simplenoteskeep"
         minSdk = 24
         targetSdk = 36
         versionCode = 61  // 🆕 v2.18.0 - markdown tables, folder sorting, backup hardening
-        versionName = "2.18.0"  // 🆕 v2.18.0 - markdown tables, folder sorting, backup hardening
+        versionName = "0.1.0"  // Fork multimédia : première version de test
 
         // APK-Size: nur tatsächlich gepflegte Locales ausliefern. AndroidX/Material/
         // Compose schleppen sonst ~70+ Sprachvarianten in resources.arsc mit. Geräte

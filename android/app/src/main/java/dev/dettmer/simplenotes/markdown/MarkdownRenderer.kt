@@ -95,6 +95,7 @@ fun MarkdownPreview(
     scrollEnabled: Boolean = true,
     compactHeaders: Boolean = false,
     onImageTokensChange: ((image: MarkdownBlock.Image, sizePercent: Int, align: ImageAlign, altText: String) -> Unit)? = null,
+    onImageTap: ((MarkdownBlock.Image) -> Unit)? = null,
     // Nur für die Snackbar-Bestätigung nach „Bild kopieren" — der Host kennt den SnackbarHostState.
     onImageCopied: (() -> Unit)? = null
 ) {
@@ -130,7 +131,9 @@ fun MarkdownPreview(
                 if (rowLength > 0) {
                     ImageRowBlock(
                         images = blocks.subList(i, i + rowLength).filterIsInstance<MarkdownBlock.Image>(),
-                        onTap = { viewerAsset = it.assetName },
+                        onTap = { image ->
+                            if (onImageTap != null) onImageTap(image) else viewerAsset = image.assetName
+                        },
                         onLongPress = onImageTokensChange?.let { _ -> { image: MarkdownBlock.Image -> menuTarget = image } }
                     )
                     Spacer(modifier = Modifier.height(Dimensions.SpacingMediumLarge))
@@ -148,7 +151,11 @@ fun MarkdownPreview(
                             block.text,
                             bodyStyle,
                             startOrdinal = block.startOrdinal,
-                            onImageTap = { viewerAsset = it },
+                            onImageTap = { assetName ->
+                                val image = blocks.filterIsInstance<MarkdownBlock.Image>()
+                                    .firstOrNull { it.assetName == assetName }
+                                if (onImageTap != null && image != null) onImageTap(image) else viewerAsset = assetName
+                            },
                             onImageLongPress = onImageTokensChange?.let { { image -> menuTarget = image } }
                         )
                         Spacer(modifier = Modifier.height(Dimensions.SpacingMediumLarge))
@@ -193,7 +200,9 @@ fun MarkdownPreview(
                     is MarkdownBlock.Image -> {
                         ImageRowBlock(
                             images = listOf(block),
-                            onTap = { viewerAsset = it.assetName },
+                            onTap = { image ->
+                                if (onImageTap != null) onImageTap(image) else viewerAsset = image.assetName
+                            },
                             onLongPress = onImageTokensChange?.let { _ -> { image: MarkdownBlock.Image -> menuTarget = image } }
                         )
                         Spacer(modifier = Modifier.height(Dimensions.SpacingMediumLarge))
