@@ -179,10 +179,7 @@ fun AudioAttachments(content: String, onRemove: (String) -> Unit, modifier: Modi
                     candidate.prepare()
                     candidate.setOnCompletionListener { playing = false }
                     candidate
-                }.getOrElse {
-                    candidate.release()
-                    null
-                }
+                }.onFailure { candidate.release() }.getOrNull()
             }
             DisposableEffect(player) { onDispose { player?.release() } }
             Card(modifier = Modifier.fillMaxWidth()) {

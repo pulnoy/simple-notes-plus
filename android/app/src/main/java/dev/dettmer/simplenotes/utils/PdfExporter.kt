@@ -305,7 +305,11 @@ object PdfExporter {
     private fun renderTextNote(renderer: PageRenderer, content: String, context: Context) {
         if (content.isBlank()) return
 
-        val blocks = MarkdownEngine.parse(content)
+        val printableContent = Regex(
+            """\[audio]\(\.assets/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:m4a|mp4|aac|wav|ogg)\)""",
+            RegexOption.IGNORE_CASE
+        ).replace(content, "Audio joint (fichier non intégré au PDF)")
+        val blocks = MarkdownEngine.parse(printableContent)
         var i = 0
         while (i < blocks.size) {
             // Reihen ab 2 Bildern gehen in den Row-Pfad; Einzelbilder bleiben auf

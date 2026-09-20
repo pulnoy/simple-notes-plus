@@ -11,6 +11,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,7 +49,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -74,6 +79,7 @@ private sealed interface AnnotationAction {
     ) : AnnotationAction
 
     data class TextAction(val text: String, val position: Offset, val color: Color) : AnnotationAction
+    data class EraserAction(val points: List<Offset>, val widthFraction: Float) : AnnotationAction
 }
 
 /** Éditeur non destructif : l'image annotée est toujours enregistrée comme un nouvel asset. */
@@ -100,10 +106,15 @@ fun ImageAnnotationDialog(
     }
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     val actions = remember { mutableStateListOf<AnnotationAction>() }
-    val redo = remember { mutableStateListOf<AnnotationAction>() }
+    val undo = remember { mutableStateListOf<List<AnnotationAction>>() }
+    val redo = remember { mutableStateListOf<List<AnnotationAction>>() }
     var currentPoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var selectedColor by remember { mutableStateOf(Color.Red) }
     var highlighter by remember { mutableStateOf(false) }
+    var eraser by remember { mutableStateOf(false) }
+    var movingText by remember { mutableStateOf(false) }
+    var strokeWidth by remember { mutableStateOf(DEFAULT_STROKE_WIDTH) }
+    var saveError by remember { mutableStateOf(false) }
     var showTextDialog by remember { mutableStateOf(false) }
     var pendingText by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -124,15 +135,25 @@ fun ImageAnnotationDialog(
                     },
                     actions = {
                         IconButton(
-                            enabled = actions.isNotEmpty(),
+                            enabled = undo.isNotEmpty(),
                             onClick = {
-                                if (actions.isNotEmpty()) redo += actions.removeAt(actions.lastIndex)
+                                if (undo.isNotEmpty()) {
+                                    redo += actions.toList()
+                                    val previous = undo.removeAt(undo.lastIndex)
+                                    actions.clear()
+                                    actions.addAll(previous)
+                                }
                             }
                         ) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Annuler") }
                         IconButton(
                             enabled = redo.isNotEmpty(),
                             onClick = {
-                                if (redo.isNotEmpty()) actions += redo.removeAt(redo.lastIndex)
+                                if (redo.isNotEmpty()) {
+                                    undo += actions.toList()
+                                    val next = redo.removeAt(redo.lastIndex)
+                                    actions.clear()
+                                    actions.addAll(next)
+                                }
                             }
                         ) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Rétablir") }
                         IconButton(
@@ -140,9 +161,9 @@ fun ImageAnnotationDialog(
                             onClick = {
                                 saving = true
                                 scope.launch {
-                                    val newName = saveAnnotatedBitmap(bitmap, actions.toList(), store)
+                                    val result = runCatching { saveAnnotatedBitmap(bitmap, actions.toList(), store) }
                                     saving = false
-                                    onSaved(newName)
+                                    result.onSuccess(onSaved).onFailure { saveError = true }
                                 }
                             }
                         ) { Icon(Icons.Default.Save, contentDescription = "Enregistrer") }
@@ -153,8 +174,14 @@ fun ImageAnnotationDialog(
                 AnnotationToolbar(
                     selectedColor = selectedColor,
                     highlighter = highlighter,
+                    eraser = eraser,
+                    movingText = movingText,
+                    strokeWidth = strokeWidth,
                     onColor = { selectedColor = it },
-                    onHighlighter = { highlighter = !highlighter },
+                    onHighlighter = { highlighter = !highlighter; eraser = false },
+                    onEraser = { eraser = !eraser; highlighter = false },
+                    onMoveText = { movingText = !movingText; eraser = false; highlighter = false },
+                    onStrokeWidth = { strokeWidth = it },
                     onText = { showTextDialog = true }
                 )
             }
@@ -166,16 +193,26 @@ fun ImageAnnotationDialog(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                AnnotationCanvas(
+                BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val scale = minOf(
+                        maxWidth.value / image.width,
+                        maxHeight.value / image.height
+                    )
+                    AnnotationCanvas(
                     image = image,
                     actions = actions,
                     currentPoints = currentPoints,
                     selectedColor = selectedColor,
                     highlighter = highlighter,
+                    eraser = eraser,
+                    movingText = movingText,
+                    strokeWidth = strokeWidth,
+                    modifier = Modifier.size((image.width * scale).dp, (image.height * scale).dp),
                     pendingText = pendingText,
                     onCurrentPoints = { currentPoints = it },
                     onTextPlaced = { position ->
                         pendingText?.let { text ->
+                            undo += actions.toList()
                             actions += AnnotationAction.TextAction(text, position, selectedColor)
                             redo.clear()
                         }
@@ -183,17 +220,30 @@ fun ImageAnnotationDialog(
                     },
                     onStrokeFinished = { finishedPoints ->
                         if (finishedPoints.size > 1) {
-                            actions += AnnotationAction.StrokeAction(
-                                finishedPoints,
-                                selectedColor,
-                                DEFAULT_STROKE_WIDTH * if (highlighter) 3f else 1f,
-                                if (highlighter) 0.35f else 1f
-                            )
+                            undo += actions.toList()
+                            actions += if (eraser) {
+                                AnnotationAction.EraserAction(finishedPoints, strokeWidth * 4f)
+                            } else {
+                                AnnotationAction.StrokeAction(
+                                    finishedPoints, selectedColor,
+                                    strokeWidth * if (highlighter) 3f else 1f,
+                                    if (highlighter) 0.35f else 1f
+                                )
+                            }
                             redo.clear()
                         }
                         currentPoints = emptyList()
+                    },
+                    onMoveTextStart = { undo += actions.toList(); redo.clear() },
+                    onMoveText = { index, position ->
+                        val current = actions.getOrNull(index) as? AnnotationAction.TextAction
+                        if (current != null) actions[index] = current.copy(position = position)
                     }
                 )
+                }
+                if (saveError) {
+                    Text("Impossible d’enregistrer le dessin.", color = Color.White, modifier = Modifier.align(Alignment.TopCenter))
+                }
             }
         }
     }
@@ -216,20 +266,42 @@ private fun AnnotationCanvas(
     currentPoints: List<Offset>,
     selectedColor: Color,
     highlighter: Boolean,
+    eraser: Boolean,
+    movingText: Boolean,
+    strokeWidth: Float,
+    modifier: Modifier,
     pendingText: String?,
     onCurrentPoints: (List<Offset>) -> Unit,
     onTextPlaced: (Offset) -> Unit,
-    onStrokeFinished: (List<Offset>) -> Unit
+    onStrokeFinished: (List<Offset>) -> Unit,
+    onMoveTextStart: () -> Unit,
+    onMoveText: (Int, Offset) -> Unit
 ) {
     Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(image.width.toFloat() / image.height.coerceAtLeast(1))
-            .pointerInput(selectedColor, highlighter, pendingText) {
+        modifier = modifier
+            .pointerInput(selectedColor, highlighter, eraser, movingText, pendingText) {
                 if (pendingText != null) {
                     detectTapGestures { position ->
                         onTextPlaced(normalize(position, size.width, size.height))
                     }
+                } else if (movingText) {
+                    var selectedIndex: Int? = null
+                    detectDragGestures(
+                        onDragStart = { p ->
+                            val pos = normalize(p, size.width, size.height)
+                            selectedIndex = actions.indices.lastOrNull { index ->
+                                val action = actions[index] as? AnnotationAction.TextAction
+                                action != null && (action.position - pos).getDistance() < 0.15f
+                            }
+                            if (selectedIndex != null) onMoveTextStart()
+                        },
+                        onDrag = { change, _ ->
+                            selectedIndex?.let { onMoveText(it, normalize(change.position, size.width, size.height)) }
+                            change.consume()
+                        },
+                        onDragEnd = { selectedIndex = null },
+                        onDragCancel = { selectedIndex = null }
+                    )
                 } else {
                     val dragPoints = mutableListOf<Offset>()
                     detectDragGestures(
@@ -250,15 +322,18 @@ private fun AnnotationCanvas(
             }
     ) {
         drawImage(image, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()))
+        drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height), Paint())
         actions.forEach { drawAnnotation(it) }
         if (currentPoints.size > 1) {
             drawNormalizedPath(
                 currentPoints,
                 selectedColor,
-                DEFAULT_STROKE_WIDTH * if (highlighter) 3f else 1f,
-                if (highlighter) 0.35f else 1f
+                strokeWidth * if (eraser) 4f else if (highlighter) 3f else 1f,
+                if (highlighter) 0.35f else 1f,
+                if (eraser) BlendMode.Clear else BlendMode.SrcOver
             )
         }
+        drawContext.canvas.restore()
     }
 }
 
@@ -277,11 +352,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAnnotation(acti
                 setShadowLayer(3f, 1f, 1f, android.graphics.Color.BLACK)
             }
         )
+        is AnnotationAction.EraserAction -> drawNormalizedPath(
+            action.points, Color.Transparent, action.widthFraction, 1f, BlendMode.Clear
+        )
     }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNormalizedPath(
-    points: List<Offset>, color: Color, widthFraction: Float, alpha: Float
+    points: List<Offset>, color: Color, widthFraction: Float, alpha: Float,
+    blendMode: BlendMode = BlendMode.SrcOver
 ) {
     if (points.size < 2) return
     val path = Path().apply {
@@ -291,7 +370,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNormalizedPath(
     drawPath(
         path,
         color.copy(alpha = alpha),
-        style = Stroke(width = size.minDimension * widthFraction, cap = StrokeCap.Round)
+        style = Stroke(width = size.minDimension * widthFraction, cap = StrokeCap.Round),
+        blendMode = blendMode
     )
 }
 
@@ -299,15 +379,25 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNormalizedPath(
 private fun AnnotationToolbar(
     selectedColor: Color,
     highlighter: Boolean,
+    eraser: Boolean,
+    movingText: Boolean,
+    strokeWidth: Float,
     onColor: (Color) -> Unit,
     onHighlighter: () -> Unit,
+    onEraser: () -> Unit,
+    onMoveText: () -> Unit,
+    onStrokeWidth: (Float) -> Unit,
     onText: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(8.dp),
+            .padding(8.dp)
+    ) {
+        Text("Épaisseur du trait")
+        Slider(value = strokeWidth, onValueChange = onStrokeWidth, valueRange = 0.002f..0.025f)
+    Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -319,12 +409,25 @@ private fun AnnotationToolbar(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
             ) { Box(Modifier.fillMaxSize().background(color, CircleShape)) }
         }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         IconButton(onClick = onHighlighter) {
             Icon(Icons.Default.Brush, contentDescription = "Surligneur", tint = if (highlighter) Color.Yellow else MaterialTheme.colorScheme.onSurface)
         }
         IconButton(onClick = onText) {
             Icon(Icons.Default.TextFields, contentDescription = "Ajouter du texte")
         }
+        TextButton(onClick = onEraser) {
+            Text("Gomme", color = if (eraser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        }
+        TextButton(onClick = onMoveText) {
+            Text("Déplacer", color = if (movingText) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        }
+    }
     }
 }
 
@@ -354,6 +457,8 @@ private suspend fun saveAnnotatedBitmap(
 ): String = withContext(Dispatchers.Default) {
     val output = source.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = AndroidCanvas(output)
+    val overlay = Bitmap.createBitmap(output.width, output.height, Bitmap.Config.ARGB_8888)
+    val overlayCanvas = AndroidCanvas(overlay)
     actions.forEach { action ->
         when (action) {
             is AnnotationAction.StrokeAction -> {
@@ -361,7 +466,7 @@ private suspend fun saveAnnotatedBitmap(
                     moveTo(action.points.first().x * output.width, action.points.first().y * output.height)
                     action.points.drop(1).forEach { lineTo(it.x * output.width, it.y * output.height) }
                 }
-                canvas.drawPath(path, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                overlayCanvas.drawPath(path, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
                     color = action.color.toArgb()
                     alpha = (action.alpha * 255).toInt()
                     style = AndroidPaint.Style.STROKE
@@ -370,7 +475,7 @@ private suspend fun saveAnnotatedBitmap(
                     strokeWidth = output.width.coerceAtMost(output.height) * action.widthFraction
                 })
             }
-            is AnnotationAction.TextAction -> canvas.drawText(
+            is AnnotationAction.TextAction -> overlayCanvas.drawText(
                 action.text,
                 action.position.x * output.width,
                 action.position.y * output.height,
@@ -380,8 +485,23 @@ private suspend fun saveAnnotatedBitmap(
                     setShadowLayer(3f, 1f, 1f, android.graphics.Color.BLACK)
                 }
             )
+            is AnnotationAction.EraserAction -> {
+                val path = android.graphics.Path().apply {
+                    moveTo(action.points.first().x * output.width, action.points.first().y * output.height)
+                    action.points.drop(1).forEach { lineTo(it.x * output.width, it.y * output.height) }
+                }
+                overlayCanvas.drawPath(path, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                    style = AndroidPaint.Style.STROKE
+                    strokeCap = AndroidPaint.Cap.ROUND
+                    strokeJoin = AndroidPaint.Join.ROUND
+                    strokeWidth = output.width.coerceAtMost(output.height) * action.widthFraction
+                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+                })
+            }
         }
     }
+    canvas.drawBitmap(overlay, 0f, 0f, null)
+    overlay.recycle()
     val bytes = ByteArrayOutputStream().use { stream ->
         output.compress(Bitmap.CompressFormat.WEBP, 92, stream)
         stream.toByteArray()

@@ -29,13 +29,15 @@ class AssetSyncManagerTest {
         assetStore.saveAssetAs(byteArrayOf(1, 2, 3), "voice.m4a")
         val webdav = mockk<WebDavClient>(relaxed = true)
         val uploadedUrl = slot<String>()
-        every { webdav.put(capture(uploadedUrl), any<ByteArray>(), any()) } returns null
+        val mime = slot<String>()
+        every { webdav.put(capture(uploadedUrl), any<ByteArray>(), capture(mime)) } returns null
 
         val referenced = dev.dettmer.simplenotes.utils.AssetReferences.extractAssetNames(
             "[audio](.assets/voice.m4a)"
         )
         assertEquals(1, manager.uploadMissing(webdav, "http://server/notes", referenced, emptyMap()))
         assertTrue(uploadedUrl.captured.endsWith("voice.m4a"))
+        assertEquals("audio/mp4", mime.captured)
     }
 
     private lateinit var tmpDir: File

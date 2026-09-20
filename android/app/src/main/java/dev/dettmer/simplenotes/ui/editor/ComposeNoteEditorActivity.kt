@@ -425,12 +425,8 @@ class ComposeNoteEditorActivity : FragmentActivity() {
         Logger.d(TAG, "handleShareAsText: textLength=${event.text.length}, assets=${assetUris.size}")
         // Bilder gehen als eigener Stream raus — der rohe ![alt](.assets/...)-Tag im Text wird
         // durch einen Platzhalter ersetzt (Duplikat wäre sonst Bild + Tag-Text beim Empfänger).
-        val shareText = if (assetUris.isEmpty()) {
-            event.text
-        } else {
-            NoteShareHelper.formatTextForShare(event.text) { alt ->
-                if (alt.isBlank()) getString(R.string.share_image_placeholder) else getString(R.string.share_image_placeholder_alt, alt)
-            }
+        val shareText = NoteShareHelper.formatTextForShare(event.text) { alt ->
+            if (alt.isBlank()) getString(R.string.share_image_placeholder) else getString(R.string.share_image_placeholder_alt, alt)
         }
         val shareIntent = when (assetUris.size) {
             0 -> Intent(Intent.ACTION_SEND).apply {

@@ -192,7 +192,13 @@ internal class AssetSyncManager(
     private suspend fun putWithRetry(webdav: WebDavClient, serverUrl: String, name: String): Boolean {
         val file = assetStore.getAssetFile(name)
         val url = urlBuilder.getAssetUrl(serverUrl, name)
-        val mime = mimeForExtension(file.extension) ?: FALLBACK_MIME
+        val mime = when (file.extension.lowercase()) {
+            "m4a", "mp4" -> "audio/mp4"
+            "aac" -> "audio/aac"
+            "wav" -> "audio/wav"
+            "ogg" -> "audio/ogg"
+            else -> mimeForExtension(file.extension) ?: FALLBACK_MIME
+        }
 
         repeat(RETRY_COUNT + 1) { attempt ->
             try {
