@@ -34,11 +34,6 @@ on:
         options:
           - completed
           - draft
-  push:
-    tags:
-      # Nur finale Versionen. `v*` hätte auch Pre-Release-Tags wie `v2.14.0-beta1`
-      # erfasst — und der Tag-Trigger deployt hart auf production/100%.
-      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: read
@@ -55,17 +50,10 @@ jobs:
       - name: Resolve deploy target
         id: target
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            echo "track=production" >> $GITHUB_OUTPUT
-            echo "status=completed" >> $GITHUB_OUTPUT
-            echo "rollout_percentage=100" >> $GITHUB_OUTPUT
-            echo "Tag-triggered: deploying to production (100%)"
-          else
-            echo "track=${{ inputs.track }}" >> $GITHUB_OUTPUT
-            echo "status=${{ inputs.status }}" >> $GITHUB_OUTPUT
-            echo "rollout_percentage=${{ inputs.rollout_percentage || '10' }}" >> $GITHUB_OUTPUT
-            echo "Manual dispatch: track=${{ inputs.track }}, status=${{ inputs.status }}"
-          fi
+          echo "track=${{ inputs.track }}" >> $GITHUB_OUTPUT
+          echo "status=${{ inputs.status }}" >> $GITHUB_OUTPUT
+          echo "rollout_percentage=${{ inputs.rollout_percentage || '10' }}" >> $GITHUB_OUTPUT
+          echo "Manual dispatch: track=${{ inputs.track }}, status=${{ inputs.status }}"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -131,11 +119,23 @@ jobs:
           fi
 
       - name: Configure Android signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/simple-notes-release.jks
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}"       >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}"             >> android/key.properties
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_PASSWORD KEY_ALIAS GOOGLE_PLAY_SERVICE_ACCOUNT_JSON; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required secret: $name" >&2
+              exit 1
+            fi
+          done
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/simple-notes-release.jks
+          printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD" > android/key.properties
+          printf 'keyPassword=%s\n' "$KEY_PASSWORD" >> android/key.properties
+          printf 'keyAlias=%s\n' "$KEY_ALIAS" >> android/key.properties
           echo "storeFile=simple-notes-release.jks"            >> android/key.properties
 
       - name: Resolve build variant
@@ -170,7 +170,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: dev.dettmer.simplenotes
+          packageName: fr.mswgillian.simplenoteskeep
           releaseFiles: ${{ steps.aab.outputs.AAB_PATH }}
           track: ${{ steps.target.outputs.track }}
           status: ${{ steps.target.outputs.status }}
@@ -186,7 +186,7 @@ jobs:
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Package | \`dev.dettmer.simplenotes\` |"
+            echo "| Package | \`fr.mswgillian.simplenoteskeep\` |"
             echo "| Version | ${{ steps.version.outputs.VERSION_NAME }} (Code ${{ steps.version.outputs.VERSION_CODE }}) |"
             echo "| Track | ${{ steps.target.outputs.track }} |"
             echo "| Variant | ${{ steps.variant.outputs.dir }} |"
