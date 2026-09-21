@@ -7,6 +7,7 @@ plugins {
 }
 
 import java.util.Properties
+import java.io.File
 import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,8 +90,10 @@ android {
     // Signing configuration for release builds
     signingConfigs {
         create("release") {
-            // Load keystore configuration from key.properties file
-            val keystorePropertiesFile = rootProject.file("key.properties")
+            // CI uses android/key.properties; local releases keep credentials outside OneDrive.
+            val repositoryPropertiesFile = rootProject.file("key.properties")
+            val privatePropertiesFile = File(System.getProperty("user.home"), ".android/simple-notes-plus/key.properties")
+            val keystorePropertiesFile = if (repositoryPropertiesFile.exists()) repositoryPropertiesFile else privatePropertiesFile
             if (keystorePropertiesFile.exists()) {
                 val keystoreProperties = Properties()
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))

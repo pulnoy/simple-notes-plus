@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -90,6 +91,7 @@ import dev.dettmer.simplenotes.models.NoteType
 import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
+import dev.dettmer.simplenotes.models.SyncStatus
 import dev.dettmer.simplenotes.sync.SyncStateManager
 import dev.dettmer.simplenotes.ui.main.components.CreateFolderDialog
 import dev.dettmer.simplenotes.ui.main.components.DeleteSelectionDialog
@@ -154,6 +156,7 @@ fun MainScreen(
 ) {
     // 🆕 v2.7.0 (Folders): ordner-unabhängige Liste; jede Pane filtert selbst nach ihrem folderKey.
     val notes by viewModel.sortedNotesUnfoldered.collectAsState()
+    val allNotes by viewModel.notes.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
     val scrollToTop by viewModel.scrollToTop.collectAsState()
     // 🆕 v1.9.0 (F13): Scroll-to-top after manual sync
@@ -253,6 +256,9 @@ fun MainScreen(
     val lastSuccessfulSync = remember(syncState, timestampTicker) {
         viewModel.getLastSuccessfulSyncTimestamp()
     }
+    val syncUpToDate = isSyncAvailable && !isSyncing &&
+        syncState != SyncStateManager.SyncState.ERROR && lastSuccessfulSync > 0L &&
+        allNotes.none { it.syncStatus == SyncStatus.PENDING || it.syncStatus == SyncStatus.CONFLICT }
 
     // Handle snackbar events from ViewModel
     LaunchedEffect(Unit) {
@@ -391,6 +397,7 @@ fun MainScreen(
                             isConfigured = isSyncAvailable,
                             isSyncing = isSyncing,
                             lastSuccessfulSync = lastSuccessfulSync,
+                            syncUpToDate = syncUpToDate,
                             onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) }
                         )
 
@@ -721,6 +728,7 @@ private fun SyncStatusRow(
     isConfigured: Boolean,
     isSyncing: Boolean,
     lastSuccessfulSync: Long,
+    syncUpToDate: Boolean,
     onSyncClick: () -> Unit
 ) {
     val status = when {
@@ -745,9 +753,17 @@ private fun SyncStatusRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        TextButton(onClick = onSyncClick, enabled = isConfigured && !isSyncing) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-            Text(text = stringResource(R.string.action_sync))
+        if (syncUpToDate) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        } else {
+            TextButton(onClick = onSyncClick, enabled = isConfigured && !isSyncing) {
+                Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+                Text(text = stringResource(R.string.action_sync))
+            }
         }
     }
 }
