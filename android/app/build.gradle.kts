@@ -118,12 +118,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Use release signing config if available, otherwise debug
-            signingConfig = if (rootProject.file("key.properties").exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // A Play release must never be signed with the Android debug key.
+            signingConfig = signingConfigs.getByName("release")
         }
 
         // 🆕 v2.14.0: Build-Typ für die Play-Testtracks (internal/alpha/beta).
