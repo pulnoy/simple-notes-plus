@@ -242,7 +242,6 @@ class NetworkMonitor(context: Context) {
             .build()
 
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .setConstraints(constraints) // 🔥 Constraints hinzugefügt
             .setBackoffCriteria(
                 BackoffPolicy.LINEAR,
