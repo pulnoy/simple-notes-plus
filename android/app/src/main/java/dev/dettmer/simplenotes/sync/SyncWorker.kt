@@ -2,11 +2,9 @@ package dev.dettmer.simplenotes.sync
 
 import android.app.ActivityManager
 import android.content.Context
-import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.content.edit
 import androidx.work.CoroutineWorker
-import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import dev.dettmer.simplenotes.BuildConfig
 import dev.dettmer.simplenotes.R
@@ -46,35 +44,6 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     private fun tagOrUnknown(): String = tags.firstOrNull() ?: "unknown"
 
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-
-    /**
-     * 🔧 v1.7.2: Required for expedited work on Android 9-11
-     *
-     * WorkManager ruft diese Methode auf um die Foreground-Notification zu erstellen
-     * wenn der Worker als Expedited Work gestartet wird.
-     *
-     * Ab Android 12+ wird diese Methode NICHT aufgerufen (neue Expedited API).
-     * Auf Android 9-11 MUSS diese Methode implementiert sein!
-     *
-     * @see https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work#foregroundinfo
-     */
-    override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notification = NotificationHelper.createSyncProgressNotification(applicationContext)
-
-        // Android 10+ benötigt foregroundServiceType
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(
-                NotificationHelper.SYNC_PROGRESS_NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            )
-        } else {
-            ForegroundInfo(
-                NotificationHelper.SYNC_PROGRESS_NOTIFICATION_ID,
-                notification
-            )
-        }
-    }
 
     /**
      * Prüft ob die App im Vordergrund ist.
