@@ -1688,14 +1688,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         SyncDebugLogger.setEnabled(enabled)
     }
 
-    /**
-     * v1.8.0: Reset changelog version to force showing the changelog dialog on next start
-     * Used for testing the post-update changelog feature
-     */
-    fun resetChangelogVersion() {
-        prefs.edit { putInt(Constants.KEY_LAST_SHOWN_CHANGELOG_VERSION, 0) }
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // Helper
     // ═══════════════════════════════════════════════════════════════════════
