@@ -280,13 +280,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit { putString(Constants.KEY_SECTION_ORDER, updated.joinToString(",")) }
     }
 
-    private val changelogGateCleared = MutableStateFlow(false)
-
-    /** Called from ComposeMainActivity once UpdateChangelogSheet has nothing left to show. */
-    fun onChangelogDismissed() {
-        changelogGateCleared.value = true
-    }
-
     /**
      * Refresh grid settings from SharedPreferences.
      * Called when returning from Settings screen.
@@ -565,11 +558,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isServerConfigured.value = !offline && hasServerConfig()
             }
         }
-        // 🆕 One-time section-reorder onboarding hint: fires once the changelog sheet has
-        // nothing left to show AND at least one section header is visible (see swapSections).
+        // Show the one-time section-reorder hint when a section header is available.
         viewModelScope.launch {
-            combine(changelogGateCleared, sortedNotesUnfoldered, _folders) { gateCleared, notes, folders ->
-                gateCleared && (notes.any { it.isPinned == true } || folders.isNotEmpty())
+            combine(sortedNotesUnfoldered, _folders) { notes, folders ->
+                notes.any { it.isPinned == true } || folders.isNotEmpty()
             }
                 .filter { it && !prefs.getBoolean(Constants.KEY_SECTION_REORDER_HINT_SHOWN, false) }
                 .take(1)
