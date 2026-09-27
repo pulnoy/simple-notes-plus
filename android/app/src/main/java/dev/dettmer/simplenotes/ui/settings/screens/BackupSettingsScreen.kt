@@ -1,9 +1,11 @@
 package dev.dettmer.simplenotes.ui.settings.screens
 
 import android.net.Uri
+import android.app.Activity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +38,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.backup.RestoreMode
+import dev.dettmer.simplenotes.sync.drive.DriveAuthorization
+import dev.dettmer.simplenotes.sync.drive.DriveAuthResult
 import dev.dettmer.simplenotes.ui.settings.SettingsViewModel
 import dev.dettmer.simplenotes.ui.settings.components.BackupPasswordDialog
 import dev.dettmer.simplenotes.ui.settings.components.BackupProgressCard
@@ -52,6 +57,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // v1.8.0: Delay for dialog close animation before starting restore
 private const val DIALOG_CLOSE_DELAY_MS = 200L
@@ -82,6 +88,51 @@ fun BackupSettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     }
 
     val isServerConfigured by viewModel.isServerConfigured.collectAsState()
+    val driveSyncEnabled by viewModel.driveSyncEnabled.collectAsState()
+    val driveAccountEmail by viewModel.driveAccountEmail.collectAsState()
+    var driveError by remember { mutableStateOf<String?>(null) }
+    var driveConnecting by remember { mutableStateOf(false) }
+    val driveAccountMissing = stringResource(R.string.drive_sync_account_missing)
+    val driveAuthorizationIncomplete = stringResource(R.string.drive_sync_authorization_incomplete)
+    val driveConnectionError = stringResource(R.string.drive_sync_connection_error)
+    val driveScope = rememberCoroutineScope()
+    val completeDriveConnection: (DriveAuthResult) -> Unit = { authorization ->
+        val token = authorization.accessToken
+        if (token.isNullOrBlank()) {
+            driveConnecting = false
+            driveError = driveAuthorizationIncomplete
+        } else {
+            driveScope.launch {
+                try {
+                    val email = authorization.email ?: DriveAuthorization.accountEmail(token)
+                    if (email.isNullOrBlank()) {
+                        driveError = driveAccountMissing
+                    } else {
+                        driveError = null
+                        viewModel.enableDriveSync(email)
+                    }
+                } catch (error: Exception) {
+                    driveError = error.localizedMessage ?: driveConnectionError
+                } finally {
+                    driveConnecting = false
+                }
+            }
+        }
+    }
+    val driveConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            try {
+                completeDriveConnection(DriveAuthorization.finish(viewModel.getApplication(), result.data!!))
+            } catch (error: Exception) {
+                driveConnecting = false
+                driveError = error.localizedMessage ?: driveConnectionError
+            }
+        } else {
+            driveConnecting = false
+        }
+    }
 
     // Restore dialog state
     var showRestoreDialog by remember { mutableStateOf(false) }
@@ -157,6 +208,52 @@ fun BackupSettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(8.dp))
+
+            if (DriveAuthorization.AVAILABLE) {
+                SettingsSectionCard(title = stringResource(R.string.drive_sync_title)) {
+                    SettingsHint(
+                        text = if (driveSyncEnabled) {
+                            stringResource(R.string.drive_sync_connected, driveAccountEmail.orEmpty())
+                        } else {
+                            stringResource(R.string.drive_sync_description)
+                        }
+                    )
+                    if (driveSyncEnabled) {
+                        SettingsOutlinedButton(
+                            text = stringResource(R.string.drive_sync_disconnect),
+                            onClick = { viewModel.disableDriveSync() }
+                        )
+                    } else {
+                        SettingsButton(
+                            text = stringResource(R.string.drive_sync_connect),
+                            isLoading = driveConnecting,
+                            onClick = {
+                                driveConnecting = true
+                                driveError = null
+                                DriveAuthorization.start(
+                                    viewModel.getApplication(),
+                                    onSuccess = { authorization ->
+                                        val pending = authorization.pendingIntent
+                                        if (pending != null) {
+                                            driveConsentLauncher.launch(
+                                                IntentSenderRequest.Builder(pending.intentSender).build()
+                                            )
+                                        } else {
+                                            completeDriveConnection(authorization)
+                                        }
+                                    },
+                                    onError = { error ->
+                                        driveConnecting = false
+                                        driveError = error.localizedMessage ?: driveConnectionError
+                                    }
+                                )
+                            }
+                        )
+                    }
+                    driveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Info Card
             SettingsInfoCard(

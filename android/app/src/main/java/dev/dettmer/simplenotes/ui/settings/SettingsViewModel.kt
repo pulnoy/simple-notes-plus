@@ -173,12 +173,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     )
     val offlineMode: StateFlow<Boolean> = _offlineMode.asStateFlow()
 
-    val isServerConfigured: StateFlow<Boolean> = combine(offlineMode, serverUrl) { offline, url ->
-        !offline && url.isNotEmpty()
+    private val _driveSyncEnabled = MutableStateFlow(prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false))
+    val driveSyncEnabled: StateFlow<Boolean> = _driveSyncEnabled.asStateFlow()
+    private val _driveAccountEmail = MutableStateFlow(
+        prefs.getString(Constants.KEY_DRIVE_ACCOUNT_EMAIL, null)
+    )
+    val driveAccountEmail: StateFlow<String?> = _driveAccountEmail.asStateFlow()
+
+    val isServerConfigured: StateFlow<Boolean> = combine(offlineMode, serverUrl, driveSyncEnabled) { offline, url, drive ->
+        !offline && (drive || url.isNotEmpty())
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
-        initialValue = !_offlineMode.value && serverUrl.value.isNotEmpty()
+        initialValue = !_offlineMode.value && (_driveSyncEnabled.value || serverUrl.value.isNotEmpty())
     )
 
     private fun hasExistingServerConfig(): Boolean {
@@ -572,6 +579,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             // 🆕 v2.3.0: Prompt battery optimization when leaving offline mode.
             checkAndPromptBatteryOptimization()
         }
+    }
+
+    fun enableDriveSync(email: String) {
+        prefs.edit {
+            putString(Constants.KEY_DRIVE_ACCOUNT_EMAIL, email)
+            putBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, true)
+            putBoolean(Constants.KEY_OFFLINE_MODE, false)
+        }
+        _driveAccountEmail.value = email
+        _driveSyncEnabled.value = true
+        _offlineMode.value = false
+        dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.schedulePeriodic(getApplication())
+        dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.enqueue(getApplication())
+    }
+
+    fun disableDriveSync() {
+        prefs.edit { putBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false) }
+        _driveSyncEnabled.value = false
+        dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.cancel(getApplication())
+        setOfflineMode(true)
     }
 
     /**
@@ -1027,6 +1054,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun checkServerStatus() {
+        if (_driveSyncEnabled.value) return
         // 🌟 v1.6.0: Respect offline mode first
         if (_offlineMode.value) {
             _serverStatus.value = ServerStatus.OfflineMode

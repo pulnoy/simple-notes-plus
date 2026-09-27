@@ -1,6 +1,8 @@
 package dev.dettmer.simplenotes.utils
 
 object Constants {
+    const val KEY_DRIVE_SYNC_ENABLED = "drive_sync_enabled"
+    const val KEY_DRIVE_ACCOUNT_EMAIL = "drive_account_email"
     // SharedPreferences
     const val PREFS_NAME = "simple_notes_prefs"
 

@@ -104,6 +104,9 @@ class SyncGateChecker(
      * @return SyncGateResult mit canSync flag und optionalem Blockierungsgrund
      */
     fun canSync(): SyncGateResult {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            return SyncGateResult(canSync = false, blockReason = null)
+        }
         // 1. Offline Mode Check
         if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) {
             return SyncGateResult(canSync = false, blockReason = null) // Silent skip

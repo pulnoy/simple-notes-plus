@@ -990,6 +990,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * If the server is not reachable, queues the deletions for the next sync.
      */
     private suspend fun attemptServerDeletion(deletions: List<PendingServerDeletions.PendingDeletion>) {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            deletions.forEach { finalizeDeletion(it.id) }
+            return
+        }
         val webdavService = WebDavSyncService(getApplication())
         val isReachable = try {
             withContext(ioDispatcher) { webdavService.isServerReachable() }
@@ -1050,6 +1054,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Actually delete note from server after snackbar dismissed
      */
     fun deleteNoteFromServer(noteId: String) {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            viewModelScope.launch(ioDispatcher) {
+                storage.deleteNote(noteId)
+                triggerOnSaveSync()
+                loadNotesAsync(forceReload = true)
+            }
+            return
+        }
         viewModelScope.launch {
             try {
                 val webdavService = WebDavSyncService(getApplication())
@@ -1104,6 +1116,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * v1.8.0: Banner erscheint sofort beim Klick (PREPARING-Phase)
      */
     fun triggerManualSync(trigger: ActivityLog.Trigger) {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return
+            if (!SyncStateManager.tryStartSync("drive-manual")) return
+            viewModelScope.launch {
+                try {
+                    val result = withContext(ioDispatcher) {
+                        dev.dettmer.simplenotes.sync.drive.DriveSyncEngine(getApplication()).sync()
+                    }
+                    loadNotes(forceReload = true)
+                    refreshFolders()
+                    SyncStateManager.markCompleted("Google Drive: synchronisation terminée")
+                    if (result.downloaded > 0) _syncCompletedScrollToTop.value = true
+                } catch (e: Exception) {
+                    SyncStateManager.markError(e.message)
+                }
+            }
+            return
+        }
         // ponytail: Alias hält die bestehenden "$source"-Logzeilen unverändert.
         val source = trigger.name
         // 🆕 v1.7.0: Zentrale Sync-Gate Prüfung (inkl. WiFi-Only, Offline Mode, Server Config)
@@ -1248,6 +1278,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Abbau: TECH_DEBT_ROADMAP.md Slice 2
     @Suppress("CyclomaticComplexMethod")
     fun triggerAutoSync(trigger: ActivityLog.Trigger) {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            if (!prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) {
+                dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.enqueue(getApplication())
+            }
+            return
+        }
         // ponytail: Alias hält die bestehenden "$source"-Logzeilen unverändert.
         val source = trigger.name
         // 🌟 v1.6.0: Check if onResume trigger is enabled
@@ -1546,11 +1582,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (removeFromServer) {
                 if (deletions.isNotEmpty()) {
                     attemptServerDeletion(deletions)
-                    val webdavService = WebDavSyncService(getApplication())
-                    for (folder in folderNames) {
-                        try {
-                            webdavService.deleteServerFolderIfEmpty(folder)
-                        } catch (_: Exception) {
+                    if (!prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+                        val webdavService = WebDavSyncService(getApplication())
+                        for (folder in folderNames) {
+                            try {
+                                webdavService.deleteServerFolderIfEmpty(folder)
+                            } catch (_: Exception) {
+                            }
                         }
                     }
                 } else {
@@ -1589,6 +1627,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Verhindert offline-Remove → Re-enable → Notiz wird beim nächsten Sync trotzdem gelöscht.
             if (noteIds.isNotEmpty()) pendingServerDeletions.remove(noteIds)
             loadNotesAsync(forceReload = true)
+            if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+                triggerManualSync(ActivityLog.Trigger.FOLDER_INCLUDE)
+                return@launch
+            }
             val webdavService = WebDavSyncService(getApplication())
             val isReachable = try {
                 webdavService.isServerReachable()
@@ -1748,7 +1790,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             stillPending.forEach { finalizeDeletion(it) }
 
             // Leere Ordner-Verzeichnisse vom Server löschen.
-            if (folderNames.isNotEmpty() && hasServerConfig() && !isOfflineMode.value) {
+            if (folderNames.isNotEmpty() && hasServerConfig() && !isOfflineMode.value &&
+                !prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
                 val service = WebDavSyncService(getApplication())
                 folderNames.filter { it !in localOnlyDeleted }.forEach { folderName ->
                     try {
@@ -1847,7 +1890,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(ioDispatcher) {
                 folderStore.deleteFolder(name)
                 val stillHasNotes = _notes.value.any { it.folderName == name }
-                if (!stillHasNotes && hasServerConfig() && !isOfflineMode.value) {
+                if (!stillHasNotes && hasServerConfig() && !isOfflineMode.value &&
+                    !prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
                     try {
                         val service = WebDavSyncService(getApplication())
                         service.deleteServerFolderIfEmpty(name)
@@ -1899,6 +1943,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Used for determining if sync would be available when offline mode is disabled
      */
     fun hasServerConfig(): Boolean {
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) return true
         val serverUrl = prefs.getString(Constants.KEY_SERVER_URL, null)
         return !serverUrl.isNullOrEmpty() && serverUrl != "http://" && serverUrl != "https://"
     }

@@ -1163,4 +1163,12 @@
     <string name="notes_list_widget_preview_content_2">Discuss roadmap and upcoming milestones</string>
     <string name="notes_list_widget_preview_title_3">Ideas</string>
     <string name="notes_list_widget_preview_content_3">New feature concepts for next sprint</string>
+    <string name="drive_sync_title">Google Drive sync</string>
+    <string name="drive_sync_description">Automatically sync notes across your devices using your Google account.</string>
+    <string name="drive_sync_connected">Account: %1$s. Notes sync automatically.</string>
+    <string name="drive_sync_connect">Connect Google Drive</string>
+    <string name="drive_sync_disconnect">Turn off sync</string>
+    <string name="drive_sync_account_missing">Google account unavailable. Try again.</string>
+    <string name="drive_sync_authorization_incomplete">Google Drive authorization incomplete. Try again.</string>
+    <string name="drive_sync_connection_error">Could not connect to Google Drive.</string>
 </resources>
