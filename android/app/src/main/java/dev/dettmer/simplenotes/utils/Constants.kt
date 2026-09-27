@@ -164,9 +164,6 @@ object Constants {
     const val KEY_COLOR_FILTER = "color_filter"
     const val DEFAULT_COLOR_FILTER = "" // "" = kein Filter aktiv
 
-    // 📋 v1.8.0: Post-Update Changelog
-    const val KEY_LAST_SHOWN_CHANGELOG_VERSION = "last_shown_changelog_version"
-
     // 🆕 v1.8.1 (IMPL_08): Globaler Sync-Cooldown (über alle Trigger hinweg)
     const val KEY_LAST_GLOBAL_SYNC_TIME = "last_global_sync_timestamp"
     const val MIN_GLOBAL_SYNC_INTERVAL_MS = 30_000L // 30 Sekunden
