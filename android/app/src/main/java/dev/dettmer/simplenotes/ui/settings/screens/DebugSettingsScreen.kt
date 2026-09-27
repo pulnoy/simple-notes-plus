@@ -297,22 +297,6 @@ fun DebugSettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onNavi
                 )
             }
 
-            // v1.8.0: Test Mode Section
-            SettingsSectionCard(title = stringResource(R.string.debug_test_section)) {
-                SettingsHint(text = stringResource(R.string.debug_reset_changelog_desc))
-
-                val changelogResetToast = stringResource(R.string.debug_changelog_reset)
-
-                SettingsButton(
-                    text = stringResource(R.string.debug_reset_changelog),
-                    onClick = {
-                        viewModel.resetChangelogVersion()
-                        viewModel.showSnackbar(changelogResetToast)
-                    },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
             SettingsSectionCard(title = stringResource(R.string.debug_sync_section)) {
                 SettingsHint(text = stringResource(R.string.debug_clear_etag_cache_subtitle))
 
