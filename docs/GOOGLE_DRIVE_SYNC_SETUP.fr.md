@@ -4,9 +4,9 @@ La variante Google Play de Simple Notes+ utilise l'espace privé `appDataFolder`
 
 ## Configuration Google Cloud
 
-1. Créer un projet Google Cloud pour Simple Notes+ et activer l'API Google Drive.
-2. Configurer l'écran de consentement OAuth avec le nom **Simple Notes+**, l'adresse de contact **pulnoy@protonmail.com** et le droit `drive.appdata`.
-3. Créer un client OAuth **Android** avec le package `fr.mswgillian.simplenoteskeep` et l'empreinte **SHA-1 du certificat de signature de l'application Play**. Cette empreinte se trouve dans Play Console → Simple Notes+ → Protégé avec Play → Signature d'application → Clé de signature d'applications. Le certificat de clé d'importation est différent.
+1. Projet Google Cloud créé : **Simple Notes Plus Sync**, ID `simple-notes-plus-sync` (numéro `455460919324`). L'API Google Drive y est activée.
+2. Branding OAuth créé avec le nom **Simple Notes+**, l'adresse de contact **pulnoy@protonmail.com** et une audience externe. Ajouter le droit `drive.appdata`.
+3. Créer un client OAuth **Android** avec le package `fr.mswgillian.simplenoteskeep` et l'empreinte **SHA-1 du certificat de signature de l'application Play** : `77:40:6C:F7:DE:B8:60:F5:9F:A4:20:DE:DA:B4:66:57:6A:E5:46:76`. Cette empreinte provient de Play Console → Simple Notes+ → Protégé avec Play → Signature d'application → Clé de signature d'applications. Le certificat de clé d'importation est différent.
 4. Pour tester une installation locale de la variante debug, créer un second client Android pour `fr.mswgillian.simplenoteskeep.debug` avec la SHA-1 de la clé debug de ce poste.
 5. Ajouter les comptes des testeurs OAuth tant que l'écran de consentement est en mode test. Publier la configuration OAuth avant une distribution plus large.
 
