@@ -31,7 +31,7 @@ class DriveSyncEngine(private val context: Context) {
     suspend fun sync(): Outcome = mutex.withLock {
         withContext(Dispatchers.IO) {
             val token = DriveAuthorization.token(context)
-                ?: throw IOException("Reconnect Google Drive in backup settings")
+                ?: throw IOException("Reconnect Google Drive in synchronization settings")
             val api = DriveApi(token)
             val deviceId = DeviceIdGenerator.getDeviceId(context)
             val ownName = DriveApi.SNAPSHOT_PREFIX + sha256(deviceId).take(24) + ".json"
