@@ -417,11 +417,7 @@ class ComposeNoteEditorActivity : FragmentActivity() {
         val imageUris = NoteShareHelper.resolveShareableImageUris(this, event.text)
         val audioUris = NoteShareHelper.resolveShareableAudioUris(this, event.text)
         val assetUris = imageUris + audioUris
-        val assetMime = when {
-            imageUris.isNotEmpty() && audioUris.isNotEmpty() -> "*/*"
-            audioUris.isNotEmpty() -> "audio/*"
-            else -> "image/*"
-        }
+        val assetMime = NoteShareHelper.attachmentMimeType(imageUris.isNotEmpty(), audioUris.isNotEmpty())
         Logger.d(TAG, "handleShareAsText: textLength=${event.text.length}, assets=${assetUris.size}")
         // Bilder gehen als eigener Stream raus — der rohe ![alt](.assets/...)-Tag im Text wird
         // durch einen Platzhalter ersetzt (Duplikat wäre sonst Bild + Tag-Text beim Empfänger).

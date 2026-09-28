@@ -39,26 +39,11 @@ internal fun DriveSyncSection(viewModel: SettingsViewModel) {
     val driveConnectionError = stringResource(R.string.drive_sync_connection_error)
     val driveScope = rememberCoroutineScope()
     val completeDriveConnection: (DriveAuthResult) -> Unit = { authorization ->
-        val token = authorization.accessToken
-        if (token.isNullOrBlank()) {
+        driveScope.launch {
+            driveError = connectDriveAccount(
+                viewModel, authorization, driveAuthorizationIncomplete, driveAccountMissing, driveConnectionError
+            )
             driveConnecting = false
-            driveError = driveAuthorizationIncomplete
-        } else {
-            driveScope.launch {
-                try {
-                    val email = authorization.email ?: DriveAuthorization.accountEmail(token)
-                    if (email.isNullOrBlank()) {
-                        driveError = driveAccountMissing
-                    } else {
-                        driveError = null
-                        viewModel.enableDriveSync(email)
-                    }
-                } catch (error: Exception) {
-                    driveError = error.localizedMessage ?: driveConnectionError
-                } finally {
-                    driveConnecting = false
-                }
-            }
         }
     }
     val driveConsentLauncher = rememberLauncherForActivityResult(
@@ -122,4 +107,26 @@ internal fun DriveSyncSection(viewModel: SettingsViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
     }
 
+}
+
+private suspend fun connectDriveAccount(
+    viewModel: SettingsViewModel,
+    authorization: DriveAuthResult,
+    incompleteMessage: String,
+    missingMessage: String,
+    connectionError: String
+): String? {
+    val token = authorization.accessToken
+    if (token.isNullOrBlank()) return incompleteMessage
+    return try {
+        val email = authorization.email ?: DriveAuthorization.accountEmail(token)
+        if (email.isNullOrBlank()) {
+            missingMessage
+        } else {
+            viewModel.enableDriveSync(email)
+            null
+        }
+    } catch (error: Exception) {
+        error.localizedMessage ?: connectionError
+    }
 }

@@ -36,7 +36,7 @@ class DriveSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
         } catch (e: IOException) {
             Logger.w("DriveSyncWorker", "Google Drive sync failed: ${e.message}")
             SyncStateManager.errorIfVisible(e.message)
-            if (runAttemptCount < 3) Result.retry() else Result.failure()
+            if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
         } catch (e: Exception) {
             Logger.e("DriveSyncWorker", "Google Drive sync failed", e)
             SyncStateManager.errorIfVisible(e.message)
@@ -45,6 +45,7 @@ class DriveSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
     }
 
     companion object {
+        private const val MAX_RETRY_ATTEMPTS = 3
         fun enqueue(context: Context) {
             val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
             val work = OneTimeWorkRequestBuilder<DriveSyncWorker>()

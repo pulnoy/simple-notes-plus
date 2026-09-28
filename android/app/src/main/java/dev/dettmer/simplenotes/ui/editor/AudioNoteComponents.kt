@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.insert
+import androidx.compose.foundation.text.input.placeCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
@@ -44,6 +47,9 @@ private val AUDIO_REFERENCE_REGEX = Regex(
     """\[audio]\(\.assets/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:m4a|mp4|aac|wav|ogg))\)""",
     RegexOption.IGNORE_CASE
 )
+private const val RECORDING_TIMER_INTERVAL_MS = 250L
+private const val AUDIO_ENCODING_BIT_RATE = 128_000
+private const val AUDIO_SAMPLING_RATE = 44_100
 
 fun audioAssetNames(content: String): List<String> =
     AUDIO_REFERENCE_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList()
@@ -64,12 +70,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     var startedAt by remember { mutableStateOf(0L) }
     var elapsedSeconds by remember { mutableStateOf(0L) }
 
-    LaunchedEffect(recording) {
-        while (recording) {
-            elapsedSeconds = (SystemClock.elapsedRealtime() - startedAt) / 1000
-            delay(250)
-        }
-    }
+    RecordingTimer(recording, startedAt) { elapsedSeconds = it }
 
     fun stopAndRelease(): File? {
         val file = outputFile
@@ -78,7 +79,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
         recorder = null
         recording = false
         outputFile = null
-        if (!stopped || SystemClock.elapsedRealtime() - startedAt < 1000 || file == null || !file.exists() || file.length() == 0L) {
+        if (!isValidRecording(file, stopped, SystemClock.elapsedRealtime() - startedAt)) {
             file?.delete()
             error = "Enregistrement trop court ou interrompu. Réessaie."
             return null
@@ -95,7 +96,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     }
 
     AlertDialog(
-        onDismissRequest = { if (!recording && !saving) onDismiss() },
+        onDismissRequest = { if (canDismissRecorder(recording, saving)) onDismiss() },
         icon = { Icon(Icons.Default.Mic, contentDescription = null) },
         title = { Text(if (recording) "Enregistrement en cours…" else "Note audio") },
         text = {
@@ -109,16 +110,7 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
                             error = null
                             val file = File(context.cacheDir, "audio-${UUID.randomUUID()}.m4a")
                             val next = MediaRecorder()
-                            val started = runCatching {
-                                next.setAudioSource(MediaRecorder.AudioSource.MIC)
-                                next.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                                next.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                                next.setAudioEncodingBitRate(128_000)
-                                next.setAudioSamplingRate(44_100)
-                                next.setOutputFile(file.absolutePath)
-                                next.prepare()
-                                next.start()
-                            }.isSuccess
+                            val started = startRecorder(next, file)
                             if (!started) {
                                 runCatching { next.release() }
                                 file.delete()
@@ -155,6 +147,51 @@ fun AudioRecorderDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
             }) { Text("Annuler") }
         }
     )
+}
+
+@Composable
+private fun RecordingTimer(recording: Boolean, startedAt: Long, onElapsed: (Long) -> Unit) {
+    LaunchedEffect(recording) {
+        while (recording) {
+            onElapsed((SystemClock.elapsedRealtime() - startedAt) / 1000)
+            delay(RECORDING_TIMER_INTERVAL_MS)
+        }
+    }
+}
+
+private fun isValidRecording(file: File?, stopped: Boolean, elapsedMs: Long): Boolean {
+    if (!stopped || elapsedMs < 1000) return false
+    return file != null && file.exists() && file.length() > 0L
+}
+
+private fun canDismissRecorder(recording: Boolean, saving: Boolean) = !recording && !saving
+
+private fun startRecorder(recorder: MediaRecorder, file: File): Boolean = runCatching {
+    recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+    recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+    recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+    recorder.setAudioEncodingBitRate(AUDIO_ENCODING_BIT_RATE)
+    recorder.setAudioSamplingRate(AUDIO_SAMPLING_RATE)
+    recorder.setOutputFile(file.absolutePath)
+    recorder.prepare()
+    recorder.start()
+}.isSuccess
+
+internal fun insertAudioMarkdown(state: TextFieldState, assetName: String) {
+    state.edit {
+        val prefix = if (length == 0 || asCharSequence()[length - 1] == '\n') "" else "\n"
+        val token = prefix + audioMarkdown(assetName)
+        insert(length, token)
+        placeCursorAtEnd()
+    }
+}
+
+internal fun removeAudioMarkdown(state: TextFieldState, assetName: String) {
+    val token = audioMarkdown(assetName)
+    state.edit {
+        val index = asCharSequence().indexOf(token)
+        if (index >= 0) replace(index, index + token.length, "")
+    }
 }
 
 @Composable
@@ -198,7 +235,10 @@ fun AudioAttachments(content: String, onRemove: (String) -> Unit, modifier: Modi
                     }
                     Column {
                         Text("Note audio", style = MaterialTheme.typography.titleSmall)
-                        Text(if (player == null) "Lecture indisponible" else "${(player.duration / 1000)} s", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            if (player == null) "Lecture indisponible" else "${(player.duration / 1000)} s",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     IconButton(onClick = { onRemove(name) }) {
                         Icon(Icons.Default.Delete, contentDescription = "Supprimer l’audio")

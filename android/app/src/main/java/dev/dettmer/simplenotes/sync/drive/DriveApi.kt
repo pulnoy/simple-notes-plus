@@ -80,10 +80,7 @@ internal class DriveApi(private val accessToken: String) {
             .header("X-Upload-Content-Type", "application/json")
             .header("X-Upload-Content-Length", bytes.size.toString())
             .build()
-        val location = client.newCall(initRequest).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Drive upload initialization failed: HTTP ${response.code}")
-            response.header("Location") ?: throw IOException("Drive did not return an upload URL")
-        }
+        val location = initializeUpload(initRequest)
         val uploadRequest = Request.Builder().url(location)
             .put(bytes.toRequestBody(jsonType))
             .header("Authorization", "Bearer $accessToken")
@@ -91,6 +88,11 @@ internal class DriveApi(private val accessToken: String) {
         val response = execute(uploadRequest)
         return JsonParser.parseString(response).asJsonObject.get("id")?.asString
             ?: existingId ?: throw IOException("Drive upload returned no file ID")
+    }
+
+    private fun initializeUpload(request: Request): String = client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) throw IOException("Drive upload initialization failed: HTTP ${response.code}")
+        response.header("Location") ?: throw IOException("Drive did not return an upload URL")
     }
 
     private fun execute(request: Request): String {

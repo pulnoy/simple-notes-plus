@@ -87,7 +87,6 @@ import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.Folder
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteFilter
-import dev.dettmer.simplenotes.models.NoteType
 import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
