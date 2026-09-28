@@ -807,4 +807,12 @@
     <string name="image_source_title">Ajouter une image</string>
     <string name="image_source_camera">Prendre une photo</string>
     <string name="image_source_gallery">Choisir dans la galerie</string>
+    <string name="drive_sync_title">Synchronisation Google Drive</string>
+    <string name="drive_sync_description">Synchronisez automatiquement vos notes entre vos appareils avec votre compte Google.</string>
+    <string name="drive_sync_connected">Compte : %1$s. Les notes se synchronisent automatiquement.</string>
+    <string name="drive_sync_connect">Connecter Google Drive</string>
+    <string name="drive_sync_disconnect">Désactiver la synchronisation</string>
+    <string name="drive_sync_account_missing">Compte Google introuvable. Réessayez.</string>
+    <string name="drive_sync_authorization_incomplete">Autorisation Google Drive incomplète. Réessayez.</string>
+    <string name="drive_sync_connection_error">Connexion à Google Drive impossible.</string>
 </resources>

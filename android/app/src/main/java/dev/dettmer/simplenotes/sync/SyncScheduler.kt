@@ -39,6 +39,12 @@ class SyncScheduler(
             return false
         }
 
+        if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
+            if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return false
+            dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.enqueue(context)
+            return true
+        }
+
         val syncService = WebDavSyncService(context)
         val gate = syncService.canSync()
         if (!gate.canSync) {

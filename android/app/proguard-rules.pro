@@ -123,6 +123,12 @@
 # ═══════════════════════════════════════════════════════════════════════
 -keep class dev.dettmer.simplenotes.sync.SyncWorker { *; }
 
+# Drive snapshots and local revisions are persisted with Gson. Preserve their JSON fields.
+-keep class dev.dettmer.simplenotes.sync.drive.DriveNoteVersion { *; }
+-keep class dev.dettmer.simplenotes.sync.drive.DriveSnapshot { *; }
+-keep class dev.dettmer.simplenotes.sync.drive.DriveLocalState { *; }
+-keep class dev.dettmer.simplenotes.sync.drive.DriveSyncWorker { *; }
+
 # ═══════════════════════════════════════════════════════════════════════
 # Glance Widgets
 # ═══════════════════════════════════════════════════════════════════════

@@ -82,7 +82,6 @@ fun BackupSettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     }
 
     val isServerConfigured by viewModel.isServerConfigured.collectAsState()
-
     // Restore dialog state
     var showRestoreDialog by remember { mutableStateOf(false) }
     var restoreSource by remember { mutableStateOf<RestoreSource>(RestoreSource.LocalFile) }

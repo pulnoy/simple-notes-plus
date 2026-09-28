@@ -1,0 +1,3 @@
+Synchronisation automatique des notes et pièces jointes avec Google Drive, disponible dans Synchronisation et notifications.
+Nouvelle icône jaune avec un « + » blanc agrandi sur pastille bleue.
+Suppression de l'affichage automatique des nouveautés au démarrage.

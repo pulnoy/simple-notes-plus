@@ -62,6 +62,8 @@ fun SettingsMainScreen(
     val developerOptionsUnlocked by viewModel.developerOptionsUnlocked.collectAsState() // 🔧 v1.11.0
 
     val isServerConfigured by viewModel.isServerConfigured.collectAsState()
+    val driveSyncEnabled by viewModel.driveSyncEnabled.collectAsState()
+    val driveAccountEmail by viewModel.driveAccountEmail.collectAsState()
 
     // 🌟 v1.6.0: Collect offline mode and trigger states
     val offlineMode by viewModel.offlineMode.collectAsState()
@@ -174,11 +176,14 @@ fun SettingsMainScreen(
 
                 SettingsCard(
                     icon = Icons.Default.Cloud,
-                    title = stringResource(R.string.settings_server),
-                    subtitle = if (!offlineMode && isConfigured) "$serverUrl/$syncFolderName" else null,
+                    title = if (driveSyncEnabled) stringResource(R.string.drive_sync_title)
+                        else stringResource(R.string.settings_server),
+                    subtitle = if (driveSyncEnabled) driveAccountEmail
+                        else if (!offlineMode && isConfigured) "$serverUrl/$syncFolderName" else null,
                     statusText = when {
                         offlineMode ->
                             stringResource(R.string.settings_server_status_offline_mode)
+                        driveSyncEnabled -> null
                         serverStatus is SettingsViewModel.ServerStatus.OfflineMode ->
                             stringResource(R.string.settings_server_status_offline_mode)
                         serverStatus is SettingsViewModel.ServerStatus.Reachable ->
@@ -203,7 +208,7 @@ fun SettingsMainScreen(
                             MaterialTheme.colorScheme.tertiary
                         else -> Color.Gray
                     },
-                    onClick = { onNavigate(SettingsRoute.Server) }
+                    onClick = { onNavigate(if (driveSyncEnabled) SettingsRoute.Sync else SettingsRoute.Server) }
                 )
             }
 

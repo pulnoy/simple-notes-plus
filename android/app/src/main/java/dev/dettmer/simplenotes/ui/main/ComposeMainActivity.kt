@@ -205,6 +205,7 @@ class ComposeMainActivity : FragmentActivity() {
                             Logger.d(TAG, "📡 Sync completed event: success=${event.success}, count=${event.count}")
                             if (event.success && event.count > 0) {
                                 viewModel.loadNotes(forceReload = true)
+                                viewModel.refreshFolders()
                                 Logger.d(TAG, "🔄 Notes reloaded after background sync")
                             }
                         }

@@ -1,0 +1,3 @@
+Automatic Google Drive synchronization for notes and attachments, available in Sync and Notifications.
+New yellow icon with a larger white plus on a blue badge.
+The What's New dialog no longer opens automatically at startup.

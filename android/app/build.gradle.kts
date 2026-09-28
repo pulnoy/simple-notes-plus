@@ -22,8 +22,8 @@ android {
         applicationId = "fr.mswgillian.simplenoteskeep"
         minSdk = 24
         targetSdk = 36
-        versionCode = 62  // Play Store: background sync without foreground service permission
-        versionName = "0.1.1"
+        versionCode = 65  // Google Drive sync and refreshed yellow icon
+        versionName = "0.1.4"
 
         // APK-Size: nur tatsächlich gepflegte Locales ausliefern. AndroidX/Material/
         // Compose schleppen sonst ~70+ Sprachvarianten in resources.arsc mit. Geräte
@@ -225,6 +225,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.gson)
+    add("standardImplementation", libs.play.services.auth)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
