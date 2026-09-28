@@ -42,14 +42,7 @@ class DriveSyncEngine(private val context: Context) {
             val previous = readState(stateFile)
 
             val remoteFiles = api.listSnapshots()
-            val snapshots = remoteFiles.map { file ->
-                val snapshot = gson.fromJson(api.download(file.id), DriveSnapshot::class.java)
-                    ?: throw IOException("Invalid Google Drive sync data")
-                if (snapshot.formatVersion != 1 || snapshot.deviceId.isBlank()) {
-                    throw IOException("Unsupported Google Drive sync data")
-                }
-                snapshot
-            }
+            val snapshots = readSnapshots(api, remoteFiles)
 
             val localOnlyFolders = folders.getLocalOnlyFolderNames()
             val allLocalNotes = storage.loadAllNotes(forceReload = true)
@@ -61,30 +54,12 @@ class DriveSyncEngine(private val context: Context) {
             val plan = DriveMergePlanner.merge(deviceId, localNotes, snapshots, previous, excludedIds)
 
             // Fetch binary assets before writing any note that references them.
-            val remoteAssets = snapshots.asSequence().flatMap { it.assets.asSequence() }
-                .distinctBy { it.name }
-                .toList()
-            val neededAssets = AssetReferences.extractAllReferenced(plan.versionsToPublish.mapNotNull { it.note })
-            remoteAssets.filter { it.name in neededAssets }.forEach { asset ->
-                if (!assets.getAssetFile(asset.name).exists()) {
-                    assets.saveAssetAs(Base64.decode(asset.dataBase64, Base64.NO_WRAP), asset.name)
-                }
-            }
+            restoreAssets(snapshots, plan)
 
             val currentFolders = folders.loadMeta()
-            val mergedFolders = (snapshots.flatMap { it.folders } + currentFolders)
-                .filter { !it.name.isNullOrBlank() }
-                .groupBy { it.name.lowercase() }
-                .map { (_, versions) ->
-                    versions.firstOrNull { it.name in localOnlyFolders && it in currentFolders }
-                        ?: versions.maxWith(compareBy<FolderMeta> { it.updatedAt }.thenBy { it.deleted })
-                }
+            val mergedFolders = mergeFolders(snapshots, currentFolders, localOnlyFolders)
             val publishedNotes = plan.versionsToPublish.mapNotNull { it.note }
-            val snapshotAssets = AssetReferences.extractAllReferenced(publishedNotes).map { name ->
-                val file = assets.getAssetFile(name)
-                if (!file.exists()) throw IOException("Missing note attachment: $name")
-                BackupAsset(name, Base64.encodeToString(file.readBytes(), Base64.NO_WRAP))
-            }
+            val snapshotAssets = collectAssets(publishedNotes)
             val outgoing = DriveSnapshot(
                 deviceId = deviceId,
                 versions = plan.versionsToPublish,
@@ -95,31 +70,71 @@ class DriveSyncEngine(private val context: Context) {
             api.upload(ownName, ownFile?.id, gson.toJson(outgoing))
 
             // Local changes are applied only after the remote snapshot is safely uploaded.
-            plan.idsToDelete.forEach { id ->
-                val current = storage.loadNote(id)
-                if (current != null && DriveMergePlanner.noteHash(current) == originalHashes[id]) {
-                    storage.deleteNote(id)
-                }
-            }
-            plan.notesToSave.forEach { note ->
-                val current = storage.loadNote(note.id)
-                if (current?.let(DriveMergePlanner::noteHash) == originalHashes[note.id]) {
-                    storage.saveNote(note)
-                }
-            }
+            applyLocalChanges(plan, originalHashes)
             if (folders.loadMeta() == currentFolders) folders.replaceMeta(mergedFolders)
             writeState(stateFile, plan.nextState)
 
             // The upload has succeeded. Clear stale local sync badges without changing note content.
-            storage.loadAllNotes(forceReload = true).forEach { note ->
-                val syncedHash = plan.nextState.hashes[note.id]
-                if (syncedHash != null && syncedHash == DriveMergePlanner.noteHash(note) &&
-                    note.syncStatus != SyncStatus.SYNCED
-                ) {
-                    storage.saveNote(note.copy(syncStatus = SyncStatus.SYNCED))
-                }
-            }
+            clearSyncedBadges(plan.nextState)
             Outcome(plan.notesToSave.size + plan.idsToDelete.size, publishedNotes.size, plan.conflictCount)
+        }
+    }
+
+    private fun readSnapshots(api: DriveApi, files: List<DriveApi.FileInfo>): List<DriveSnapshot> = files.map { file ->
+        val snapshot = gson.fromJson(api.download(file.id), DriveSnapshot::class.java)
+            ?: throw IOException("Invalid Google Drive sync data")
+        if (snapshot.formatVersion != 1 || snapshot.deviceId.isBlank()) {
+            throw IOException("Unsupported Google Drive sync data")
+        }
+        snapshot
+    }
+
+    private suspend fun restoreAssets(snapshots: List<DriveSnapshot>, plan: DriveMergePlan) {
+        val remoteAssets = snapshots.asSequence().flatMap { it.assets.asSequence() }.distinctBy { it.name }.toList()
+        val neededAssets = AssetReferences.extractAllReferenced(plan.versionsToPublish.mapNotNull { it.note })
+        remoteAssets.filter { it.name in neededAssets }.forEach { asset ->
+            if (!assets.getAssetFile(asset.name).exists()) {
+                assets.saveAssetAs(Base64.decode(asset.dataBase64, Base64.NO_WRAP), asset.name)
+            }
+        }
+    }
+
+    private fun mergeFolders(
+        snapshots: List<DriveSnapshot>,
+        currentFolders: List<FolderMeta>,
+        localOnlyFolders: Set<String>
+    ): List<FolderMeta> = (snapshots.flatMap { it.folders } + currentFolders)
+        .filter { !it.name.isNullOrBlank() }
+        .groupBy { it.name.lowercase() }
+        .map { (_, versions) ->
+            versions.firstOrNull { it.name in localOnlyFolders && it in currentFolders }
+                ?: versions.maxWith(compareBy<FolderMeta> { it.updatedAt }.thenBy { it.deleted })
+        }
+
+    private fun collectAssets(notes: List<dev.dettmer.simplenotes.models.Note>): List<BackupAsset> =
+        AssetReferences.extractAllReferenced(notes).map { name ->
+            val file = assets.getAssetFile(name)
+            if (!file.exists()) throw IOException("Missing note attachment: $name")
+            BackupAsset(name, Base64.encodeToString(file.readBytes(), Base64.NO_WRAP))
+        }
+
+    private suspend fun applyLocalChanges(plan: DriveMergePlan, originalHashes: Map<String, String>) {
+        plan.idsToDelete.forEach { id ->
+            val current = storage.loadNote(id)
+            if (current != null && DriveMergePlanner.noteHash(current) == originalHashes[id]) storage.deleteNote(id)
+        }
+        plan.notesToSave.forEach { note ->
+            val current = storage.loadNote(note.id)
+            if (current?.let(DriveMergePlanner::noteHash) == originalHashes[note.id]) storage.saveNote(note)
+        }
+    }
+
+    private suspend fun clearSyncedBadges(state: DriveLocalState) {
+        storage.loadAllNotes(forceReload = true).forEach { note ->
+            val syncedHash = state.hashes[note.id]
+            if (syncedHash != null && syncedHash == DriveMergePlanner.noteHash(note) &&
+                note.syncStatus != SyncStatus.SYNCED
+            ) storage.saveNote(note.copy(syncStatus = SyncStatus.SYNCED))
         }
     }
 

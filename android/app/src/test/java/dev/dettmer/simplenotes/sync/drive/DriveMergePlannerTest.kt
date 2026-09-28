@@ -77,5 +77,6 @@ class DriveMergePlannerTest {
         )
         assertFalse(excluded.idsToDelete.contains("n1"))
         assertTrue(excluded.versionsToPublish.isEmpty())
+        assertEquals(first.nextState, excluded.nextState)
     }
 }

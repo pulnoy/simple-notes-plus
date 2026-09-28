@@ -59,15 +59,65 @@ object DriveMergePlanner {
         excludedIds: Set<String> = emptySet()
     ): DriveMergePlan {
         val local = localNotes.associateBy { it.id }
-        val candidates = mutableMapOf<String, MutableList<DriveNoteVersion>>()
-        remoteSnapshots.forEach { snapshot ->
-            require(snapshot.formatVersion == 1) { "Unsupported Drive snapshot format" }
-            snapshot.versions.forEach { version ->
-                if (version.id.isNotBlank() && version.revision > 0L && version.id !in excludedIds) {
-                    candidates.getOrPut(version.id) { mutableListOf() }.add(version)
+        val candidates = collectCandidates(deviceId, local, remoteSnapshots, previous, excludedIds)
+
+        val toSave = mutableListOf<Note>()
+        val toDelete = mutableSetOf<String>()
+        val published = mutableListOf<DriveNoteVersion>()
+        val hashes = previous.hashes.filterKeys { it in excludedIds }.toMutableMap()
+        val revisions = previous.revisions.filterKeys { it in excludedIds }.toMutableMap()
+        val tombstones = previous.tombstones.filterKeys { it in excludedIds }.toMutableMap()
+        var conflicts = 0
+
+        candidates.forEach { (id, entries) ->
+            val maxRevision = entries.maxOf { it.revision }
+            val latest = entries.filter { it.revision == maxRevision }
+                .distinctBy { it.deviceId to versionHash(it) }
+            val winner = latest.maxWith(
+                compareBy<DriveNoteVersion> { it.note == null }
+                    .thenBy { it.deviceId }
+                    .thenBy(::versionHash)
+            )
+            revisions[id] = maxRevision
+            published += winner
+            if (winner.note == null) {
+                tombstones[id] = maxRevision
+                if (id in local) toDelete += id
+            } else {
+                val normalized = winner.note.copy(syncStatus = SyncStatus.SYNCED)
+                hashes[id] = noteHash(normalized)
+                if (local[id]?.let(::noteHash) != hashes[id]) toSave += normalized
+            }
+
+            latest.filter { versionHash(it) != versionHash(winner) }.forEach { loser ->
+                val copy = conflictCopy(id, loser) ?: return@forEach
+                if (copy.id !in candidates && copy.id !in local) {
+                    toSave += copy
+                    hashes[copy.id] = noteHash(copy)
+                    revisions[copy.id] = 1L
+                    published += DriveNoteVersion(copy.id, 1L, deviceId, copy)
+                    conflicts++
                 }
             }
         }
+
+        return DriveMergePlan(
+            notesToSave = toSave,
+            idsToDelete = toDelete,
+            versionsToPublish = published,
+            nextState = DriveLocalState(hashes, revisions, tombstones),
+            conflictCount = conflicts
+        )
+    }
+
+    private fun collectCandidates(
+        deviceId: String,
+        local: Map<String, Note>,
+        remoteSnapshots: List<DriveSnapshot>,
+        previous: DriveLocalState,
+        excludedIds: Set<String>
+    ): MutableMap<String, MutableList<DriveNoteVersion>> {
+        val candidates = remoteCandidates(remoteSnapshots, excludedIds)
 
         val knownIds = previous.hashes.keys + previous.tombstones.keys
         (local.keys + knownIds).filterNot { it in excludedIds }.forEach { id ->
@@ -92,67 +142,32 @@ object DriveMergePlanner {
                 )
             }
         }
+        return candidates
+    }
 
-        val toSave = mutableListOf<Note>()
-        val toDelete = mutableSetOf<String>()
-        val published = mutableListOf<DriveNoteVersion>()
-        val hashes = mutableMapOf<String, String>()
-        val revisions = mutableMapOf<String, Long>()
-        val tombstones = mutableMapOf<String, Long>()
-        excludedIds.forEach { id ->
-            previous.hashes[id]?.let { hashes[id] = it }
-            previous.revisions[id]?.let { revisions[id] = it }
-            previous.tombstones[id]?.let { tombstones[id] = it }
-        }
-        var conflicts = 0
-
-        candidates.forEach { (id, entries) ->
-            val maxRevision = entries.maxOf { it.revision }
-            val latest = entries.filter { it.revision == maxRevision }
-                .distinctBy { it.deviceId to versionHash(it) }
-            val winner = latest.maxWith(
-                compareBy<DriveNoteVersion> { it.note == null }
-                    .thenBy { it.deviceId }
-                    .thenBy(::versionHash)
-            )
-            revisions[id] = maxRevision
-            published += winner
-            if (winner.note == null) {
-                tombstones[id] = maxRevision
-                if (id in local) toDelete += id
-            } else {
-                val normalized = winner.note.copy(syncStatus = SyncStatus.SYNCED)
-                hashes[id] = noteHash(normalized)
-                if (local[id]?.let(::noteHash) != hashes[id]) toSave += normalized
-            }
-
-            latest.filter { versionHash(it) != versionHash(winner) }.forEach { loser ->
-                val note = loser.note ?: return@forEach
-                val conflictId = UUID.nameUUIDFromBytes(
-                    "drive-conflict:$id:${loser.deviceId}:${loser.revision}:${versionHash(loser)}"
-                        .toByteArray(StandardCharsets.UTF_8)
-                ).toString()
-                val copy = note.copy(
-                    id = conflictId,
-                    title = "${note.title} (conflit)",
-                    syncStatus = SyncStatus.SYNCED
-                )
-                if (conflictId !in candidates && conflictId !in local) {
-                    toSave += copy
-                    hashes[conflictId] = noteHash(copy)
-                    revisions[conflictId] = 1L
-                    published += DriveNoteVersion(conflictId, 1L, deviceId, copy)
-                    conflicts++
+    private fun remoteCandidates(
+        remoteSnapshots: List<DriveSnapshot>,
+        excludedIds: Set<String>
+    ): MutableMap<String, MutableList<DriveNoteVersion>> {
+        val candidates = mutableMapOf<String, MutableList<DriveNoteVersion>>()
+        remoteSnapshots.forEach { snapshot ->
+            require(snapshot.formatVersion == 1) { "Unsupported Drive snapshot format" }
+            snapshot.versions.forEach { version ->
+                if (version.id.isNotBlank() && version.revision > 0L && version.id !in excludedIds) {
+                    candidates.getOrPut(version.id) { mutableListOf() }.add(version)
                 }
             }
         }
 
-        return DriveMergePlan(
-            notesToSave = toSave,
-            idsToDelete = toDelete,
-            versionsToPublish = published,
-            nextState = DriveLocalState(hashes, revisions, tombstones),
-            conflictCount = conflicts
-        )
+        return candidates
+    }
+
+    private fun conflictCopy(id: String, loser: DriveNoteVersion): Note? {
+        val note = loser.note ?: return null
+        val conflictId = UUID.nameUUIDFromBytes(
+            "drive-conflict:$id:${loser.deviceId}:${loser.revision}:${versionHash(loser)}"
+                .toByteArray(StandardCharsets.UTF_8)
+        ).toString()
+        return note.copy(id = conflictId, title = "${note.title} (conflit)", syncStatus = SyncStatus.SYNCED)
     }
 }

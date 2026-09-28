@@ -40,11 +40,19 @@ class SyncScheduler(
         }
 
         if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
-            if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return false
-            dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.enqueue(context)
-            return true
+            return triggerDriveSync()
         }
 
+        return triggerWebDavSync(reason)
+    }
+
+    private fun triggerDriveSync(): Boolean {
+        if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return false
+        dev.dettmer.simplenotes.sync.drive.DriveSyncWorker.enqueue(context)
+        return true
+    }
+
+    private fun triggerWebDavSync(reason: String): Boolean {
         val syncService = WebDavSyncService(context)
         val gate = syncService.canSync()
         if (!gate.canSync) {

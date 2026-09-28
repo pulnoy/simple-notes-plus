@@ -1008,6 +1008,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             SyncStateManager.showInfo(getString(R.string.snackbar_delete_queued_for_sync))
             return
         }
+        performReachableDeletions(deletions, webdavService)
+    }
+
+    private suspend fun performReachableDeletions(
+        deletions: List<PendingServerDeletions.PendingDeletion>,
+        webdavService: WebDavSyncService
+    ) {
         // Server reachable → delete immediately (folderName korrekt übergeben)
         val total = deletions.size
         var successCount = 0
@@ -1117,23 +1124,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun triggerManualSync(trigger: ActivityLog.Trigger) {
         if (prefs.getBoolean(Constants.KEY_DRIVE_SYNC_ENABLED, false)) {
-            if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return
-            if (!SyncStateManager.tryStartSync("drive-manual")) return
-            viewModelScope.launch {
-                try {
-                    val result = withContext(ioDispatcher) {
-                        dev.dettmer.simplenotes.sync.drive.DriveSyncEngine(getApplication()).sync()
-                    }
-                    loadNotes(forceReload = true)
-                    refreshFolders()
-                    SyncStateManager.markCompleted("Google Drive: synchronisation terminée")
-                    if (result.downloaded > 0) _syncCompletedScrollToTop.value = true
-                } catch (e: Exception) {
-                    SyncStateManager.markError(e.message)
-                }
-            }
+            triggerManualDriveSync()
             return
         }
+        triggerManualWebDavSync(trigger)
+    }
+
+    private fun triggerManualDriveSync() {
+        if (prefs.getBoolean(Constants.KEY_OFFLINE_MODE, Constants.DEFAULT_OFFLINE_MODE)) return
+        if (!SyncStateManager.tryStartSync("drive-manual")) return
+        viewModelScope.launch {
+            try {
+                val result = withContext(ioDispatcher) {
+                    dev.dettmer.simplenotes.sync.drive.DriveSyncEngine(getApplication()).sync()
+                }
+                loadNotes(forceReload = true)
+                refreshFolders()
+                SyncStateManager.markCompleted("Google Drive: synchronisation terminée")
+                if (result.downloaded > 0) _syncCompletedScrollToTop.value = true
+            } catch (e: Exception) {
+                SyncStateManager.markError(e.message)
+            }
+        }
+    }
+
+    private fun triggerManualWebDavSync(trigger: ActivityLog.Trigger) {
         // ponytail: Alias hält die bestehenden "$source"-Logzeilen unverändert.
         val source = trigger.name
         // 🆕 v1.7.0: Zentrale Sync-Gate Prüfung (inkl. WiFi-Only, Offline Mode, Server Config)

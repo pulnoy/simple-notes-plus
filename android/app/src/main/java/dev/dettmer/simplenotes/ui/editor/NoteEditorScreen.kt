@@ -127,7 +127,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import dev.dettmer.simplenotes.BuildConfig
 import dev.dettmer.simplenotes.R
@@ -155,8 +154,6 @@ import dev.dettmer.simplenotes.utils.AssetReferences
 import dev.dettmer.simplenotes.utils.Constants
 import dev.dettmer.simplenotes.utils.Logger
 import dev.dettmer.simplenotes.utils.NoteShareHelper
-import java.io.File
-import java.util.UUID
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1436,12 +1433,6 @@ fun NoteEditorScreen(
     }
 }
 
-private fun createCameraPhotoUri(context: Context): Uri {
-    val directory = File(context.cacheDir, "camera_photos").apply { mkdirs() }
-    val file = File(directory, "photo-${UUID.randomUUID()}.jpg")
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-}
-
 private fun replaceImageAsset(state: TextFieldState, oldName: String, newName: String) {
     val oldReference = ".assets/$oldName"
     val newReference = ".assets/$newName"
@@ -1451,23 +1442,6 @@ private fun replaceImageAsset(state: TextFieldState, oldName: String, newName: S
             replace(index, index + oldReference.length, newReference)
             index = asCharSequence().indexOf(oldReference, index + newReference.length)
         }
-    }
-}
-
-private fun insertAudioMarkdown(state: TextFieldState, assetName: String) {
-    state.edit {
-        val prefix = if (length == 0 || asCharSequence()[length - 1] == '\n') "" else "\n"
-        val token = prefix + audioMarkdown(assetName)
-        insert(length, token)
-        placeCursorAtEnd()
-    }
-}
-
-private fun removeAudioMarkdown(state: TextFieldState, assetName: String) {
-    val token = audioMarkdown(assetName)
-    state.edit {
-        val index = asCharSequence().indexOf(token)
-        if (index >= 0) replace(index, index + token.length, "")
     }
 }
 
