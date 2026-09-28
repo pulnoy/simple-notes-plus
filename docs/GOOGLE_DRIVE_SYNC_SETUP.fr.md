@@ -5,10 +5,12 @@ La variante Google Play de Simple Notes+ utilise l'espace privé `appDataFolder`
 ## Configuration Google Cloud
 
 1. Projet Google Cloud créé : **Simple Notes Plus Sync**, ID `simple-notes-plus-sync` (numéro `455460919324`). L'API Google Drive y est activée.
-2. Branding OAuth créé avec le nom **Simple Notes+**, l'adresse de contact **pulnoy@protonmail.com** et une audience externe. Ajouter le droit `drive.appdata`.
-3. Créer un client OAuth **Android** avec le package `fr.mswgillian.simplenoteskeep` et l'empreinte **SHA-1 du certificat de signature de l'application Play** : `77:40:6C:F7:DE:B8:60:F5:9F:A4:20:DE:DA:B4:66:57:6A:E5:46:76`. Cette empreinte provient de Play Console → Simple Notes+ → Protégé avec Play → Signature d'application → Clé de signature d'applications. Le certificat de clé d'importation est différent.
+2. Branding OAuth créé avec le nom **Simple Notes+**, l'adresse de contact **pulnoy@protonmail.com** et une audience externe. Le droit `drive.appdata` a été enregistré le 28 septembre 2026.
+3. Client OAuth **Android** créé : **Simple Notes+ Google Play**, ID `455460919324-jl8cv9i2nmc8fndkfc7tavcf998eehbu.apps.googleusercontent.com`, package `fr.mswgillian.simplenoteskeep` et empreinte **SHA-1 du certificat de signature de l'application Play** : `77:40:6C:F7:DE:B8:60:F5:9F:A4:20:DE:DA:B4:66:57:6A:E5:46:76`. Cette empreinte provient de Play Console → Simple Notes+ → Protégé avec Play → Signature d'application → Clé de signature d'applications. Le certificat de clé d'importation est différent.
 4. Pour tester une installation locale de la variante debug, créer un second client Android pour `fr.mswgillian.simplenoteskeep.debug` avec la SHA-1 de la clé debug de ce poste.
-5. Ajouter les comptes des testeurs OAuth tant que l'écran de consentement est en mode test. Publier la configuration OAuth avant une distribution plus large.
+5. L'écran de consentement reste en mode test ; `pulnoy@gmail.com` est ajouté comme utilisateur test. Ajouter les autres comptes de test si nécessaire. Publier la configuration OAuth avant une distribution plus large.
+
+La [politique de confidentialité](https://github.com/pulnoy/simple-notes-plus/blob/main/docs/PRIVACY_POLICY.fr.md) incluant Google Drive a été publiée sur `main` le 28 septembre 2026 (commit `3e645a8dec1f6316b72a63b4b7581f27ec12806b`).
 
 ## Validation avant une version Play
 
