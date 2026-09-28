@@ -149,6 +149,8 @@ fun SyncSettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit, onNavig
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
+            DriveSyncSection(viewModel)
+
             // ── Server not configured / Offline mode warning ──
             if (!isServerConfigured) {
                 SettingsInfoCard(

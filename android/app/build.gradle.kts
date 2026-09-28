@@ -22,8 +22,8 @@ android {
         applicationId = "fr.mswgillian.simplenoteskeep"
         minSdk = 24
         targetSdk = 36
-        versionCode = 63  // Google Drive sync test version
-        versionName = "0.1.2"
+        versionCode = 64  // Google Drive settings moved to synchronization
+        versionName = "0.1.3"
 
         // APK-Size: nur tatsächlich gepflegte Locales ausliefern. AndroidX/Material/
         // Compose schleppen sonst ~70+ Sprachvarianten in resources.arsc mit. Geräte

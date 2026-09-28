@@ -208,7 +208,7 @@ fun SettingsMainScreen(
                             MaterialTheme.colorScheme.tertiary
                         else -> Color.Gray
                     },
-                    onClick = { onNavigate(if (driveSyncEnabled) SettingsRoute.Backup else SettingsRoute.Server) }
+                    onClick = { onNavigate(if (driveSyncEnabled) SettingsRoute.Sync else SettingsRoute.Server) }
                 )
             }
 
