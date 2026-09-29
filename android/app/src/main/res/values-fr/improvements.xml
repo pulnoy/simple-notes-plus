@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="drive_sync_reauthorize">Reconnecter Google Drive</string>
+    <string name="drive_status_label">Google Drive · %1$s</string>
+    <string name="drive_status_offline">Mode hors ligne activé</string>
+    <string name="drive_status_running">Synchronisation en cours…</string>
+    <string name="drive_status_waiting_connection">En attente de connexion Internet</string>
+    <string name="drive_status_queued">Synchronisation en attente</string>
+    <string name="drive_status_never">Aucune synchronisation réussie pour le moment</string>
+    <string name="drive_status_current">Dernière synchronisation terminée</string>
+    <string name="drive_status_last_success">Dernière réussite : %1$s</string>
+    <string name="drive_status_reconnect">Vérifier le compte</string>
+    <string name="drive_status_retry">Synchroniser</string>
+    <string name="drive_status_authorization_error">Accès expiré ou refusé. Reconnectez le compte dans les paramètres.</string>
+    <string name="drive_status_data_error">Notes ou pièces jointes illisibles. Vérifiez l’autre appareil, puis réessayez.</string>
+    <string name="drive_status_connection_error">Drive est inaccessible. Vérifiez la connexion, puis réessayez.</string>
+    <string name="drive_status_other_error">La synchronisation a échoué. Les notes locales sont conservées.</string>
+    <string name="home_search">Rechercher</string>
+    <string name="home_widgets">Widgets</string>
+    <string name="filter_drawings">Dessins / images</string>
+    <string name="filter_audio">Audio</string>
+    <string name="search_all_folders">Tous les dossiers</string>
+    <string name="search_root_folder">Sans dossier</string>
+    <string name="widget_picker_title">Ajouter un widget à l’accueil</string>
+    <string name="widget_picker_hint">Choisissez un raccourci de création ou une note. Android vous demandera de confirmer son ajout.</string>
+    <string name="widget_picker_manual">Appui long sur un espace vide de l’accueil du téléphone, puis Widgets, puis Simple Notes+.</string>
+    <string name="widget_picker_new">Note / liste rapide</string>
+    <string name="widget_picker_choose_note">Afficher une note (épinglées en premier)</string>
+    <string name="widget_picker_empty">Créez une note pour pouvoir l’afficher dans un widget.</string>
+    <string name="widget_picker_pinned">Épinglée · %1$s</string>
+    <string name="widget_picker_note">%1$s</string>
+    <string name="widget_picker_untitled">Note sans titre</string>
+</resources>

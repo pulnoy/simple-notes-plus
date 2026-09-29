@@ -10,7 +10,9 @@ package dev.dettmer.simplenotes.models
 enum class NoteFilter(val prefsValue: String) {
     ALL("all"),
     TEXT_ONLY("text"),
-    CHECKLIST_ONLY("checklist");
+    CHECKLIST_ONLY("checklist"),
+    IMAGE_ONLY("image"),
+    AUDIO_ONLY("audio");
 
     companion object {
         fun fromPrefsValue(value: String): NoteFilter {

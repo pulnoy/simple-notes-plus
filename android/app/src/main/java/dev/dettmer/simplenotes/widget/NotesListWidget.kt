@@ -12,7 +12,7 @@ import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteFilter
-import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NoteSearch
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
 import dev.dettmer.simplenotes.storage.FolderStore
@@ -117,11 +117,7 @@ fun applyFilterAndSort(
     sortOption: SortOption,
     sortDirection: SortDirection
 ): List<Note> {
-    val filtered = when (filter) {
-        NoteFilter.ALL -> notes
-        NoteFilter.TEXT_ONLY -> notes.filter { it.noteType == NoteType.TEXT }
-        NoteFilter.CHECKLIST_ONLY -> notes.filter { it.noteType == NoteType.CHECKLIST }
-    }
+    val filtered = notes.filter { NoteSearch.matchesType(it, filter) }
 
     // SortOption.COLOR is skipped — no color palette reference in widget; falls back to UPDATED_AT.
     val comparator: Comparator<Note> = when (sortOption) {

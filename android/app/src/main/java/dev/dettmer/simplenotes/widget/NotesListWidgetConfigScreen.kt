@@ -165,7 +165,9 @@ fun NotesListWidgetConfigScreen(
                 listOf(
                     NoteFilter.ALL to stringResource(R.string.filter_all),
                     NoteFilter.TEXT_ONLY to stringResource(R.string.filter_text_only),
-                    NoteFilter.CHECKLIST_ONLY to stringResource(R.string.filter_checklist_only)
+                    NoteFilter.CHECKLIST_ONLY to stringResource(R.string.filter_checklist_only),
+                    NoteFilter.IMAGE_ONLY to stringResource(R.string.filter_drawings),
+                    NoteFilter.AUDIO_ONLY to stringResource(R.string.filter_audio)
                 ).forEach { (filter, label) ->
                     FilterChip(
                         selected = noteFilter == filter,

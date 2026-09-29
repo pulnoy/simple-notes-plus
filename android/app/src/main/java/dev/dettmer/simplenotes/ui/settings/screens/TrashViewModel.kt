@@ -11,6 +11,8 @@ import dev.dettmer.simplenotes.storage.NotesStorage
 import dev.dettmer.simplenotes.storage.TrashManager
 import dev.dettmer.simplenotes.sync.PendingServerDeletions
 import dev.dettmer.simplenotes.sync.SyncScheduler
+import dev.dettmer.simplenotes.sync.SyncEvent
+import dev.dettmer.simplenotes.sync.SyncEventBus
 import dev.dettmer.simplenotes.utils.Constants
 import dev.dettmer.simplenotes.utils.trashRetentionDays
 import dev.dettmer.simplenotes.widget.WidgetUpdateHelper
@@ -56,6 +58,13 @@ class TrashViewModel(application: Application) : AndroidViewModel(application) {
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            SyncEventBus.events.collect { event ->
+                if (event is SyncEvent.SyncCompleted && event.success) {
+                    withContext(ioDispatcher) { reload() }
+                }
+            }
+        }
         viewModelScope.launch(ioDispatcher) {
             // Auto-Purge abgelaufener Einträge beim Öffnen des Papierkorbs.
             val purged = trashManager.purgeExpired()

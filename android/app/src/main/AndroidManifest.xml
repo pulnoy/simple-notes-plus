@@ -109,6 +109,8 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             tools:node="remove" />
 
+        <receiver android:name=".widget.WidgetPinReceiver" android:exported="false" />
+
         <!-- 🆕 v1.8.0: Widget Receiver -->
         <receiver
             android:name=".widget.NoteWidgetReceiver"

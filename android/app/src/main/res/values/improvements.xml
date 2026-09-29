@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="drive_sync_reauthorize">Reconnect Google Drive</string>
+    <string name="drive_status_label">Google Drive · %1$s</string>
+    <string name="drive_status_offline">Offline mode enabled</string>
+    <string name="drive_status_running">Synchronizing…</string>
+    <string name="drive_status_waiting_connection">Waiting for an Internet connection</string>
+    <string name="drive_status_queued">Synchronization queued</string>
+    <string name="drive_status_never">No successful synchronization yet</string>
+    <string name="drive_status_current">Last synchronization completed</string>
+    <string name="drive_status_last_success">Last success: %1$s</string>
+    <string name="drive_status_reconnect">Check account</string>
+    <string name="drive_status_retry">Sync / retry</string>
+    <string name="drive_status_authorization_error">Access expired or denied. Reconnect your account in settings.</string>
+    <string name="drive_status_data_error">Unable to read notes or attachments. Check the other device, then retry.</string>
+    <string name="drive_status_connection_error">Drive could not be reached. Check your connection and retry.</string>
+    <string name="drive_status_other_error">Synchronization failed. Your local notes are preserved.</string>
+    <string name="home_search">Search</string>
+    <string name="home_widgets">Widgets</string>
+    <string name="filter_drawings">Drawings / images</string>
+    <string name="filter_audio">Audio</string>
+    <string name="search_all_folders">All folders</string>
+    <string name="search_root_folder">No folder</string>
+    <string name="widget_picker_title">Add a home screen widget</string>
+    <string name="widget_picker_hint">Choose a creation shortcut or a note. Android will ask you to confirm its placement.</string>
+    <string name="widget_picker_manual">Long press an empty area of your home screen, choose Widgets, then Simple Notes+.</string>
+    <string name="widget_picker_new">Quick note / checklist</string>
+    <string name="widget_picker_choose_note">Display a note (pinned notes first)</string>
+    <string name="widget_picker_empty">Create a note first to display it in a widget.</string>
+    <string name="widget_picker_pinned">Pinned · %1$s</string>
+    <string name="widget_picker_note">%1$s</string>
+    <string name="widget_picker_untitled">Untitled note</string>
+</resources>

@@ -97,6 +97,9 @@ import dev.dettmer.simplenotes.ui.main.components.DeleteSelectionDialog
 import dev.dettmer.simplenotes.ui.main.components.EmptyState
 import dev.dettmer.simplenotes.ui.main.components.ExcludeFolderSyncSheet
 import dev.dettmer.simplenotes.ui.main.components.FilterChipRow
+import dev.dettmer.simplenotes.ui.main.components.DriveSyncStatus
+import dev.dettmer.simplenotes.ui.main.components.HomeTools
+import dev.dettmer.simplenotes.ui.main.components.SearchScopeRow
 import dev.dettmer.simplenotes.ui.main.components.MoveToFolderSheet
 import dev.dettmer.simplenotes.ui.main.components.NoteColorPickerSheet
 import dev.dettmer.simplenotes.ui.main.components.NoteTypeFAB
@@ -226,6 +229,7 @@ fun MainScreen(
     val noteFilter by viewModel.noteFilter.collectAsState()
     // 🆕 v1.9.0 (F10): Search query state
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchFolder by viewModel.searchFolder.collectAsState()
     // 🆕 v2.16.0 (#141): Suche läuft → ordnerübergreifende, flache Trefferliste (siehe NotesPane)
     val searchActive by viewModel.searchActive.collectAsState()
     // 🆕 v2.5.0: Farbfilter-State
@@ -392,35 +396,49 @@ fun MainScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        SyncStatusRow(
-                            isConfigured = isSyncAvailable,
-                            isSyncing = isSyncing,
-                            lastSuccessfulSync = lastSuccessfulSync,
-                            syncUpToDate = syncUpToDate,
-                            onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) }
-                        )
+                        DriveSyncStatus {
+                            SyncStatusRow(
+                                isConfigured = isSyncAvailable,
+                                isSyncing = isSyncing,
+                                lastSuccessfulSync = lastSuccessfulSync,
+                                syncUpToDate = syncUpToDate,
+                                onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) }
+                            )
+                        }
+
+                        HomeTools(allNotes) { showFilterRow = !showFilterRow }
 
                         // 🆕 v1.9.0 (F06): Filter Chip Row
                         // 🆕 v1.9.0 (F10): + Inline search field
                         // 🆕 v1.9.0 (F11): + Sort chip + toggle visibility
                         AnimatedVisibility(
-                            visible = showFilterRow,
+                            visible = showFilterRow || searchQuery.isNotBlank() || searchFolder != null ||
+                                noteFilter != NoteFilter.ALL || colorFilter != null,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            FilterChipRow(
-                                currentFilter = noteFilter,
-                                onFilterSelected = { viewModel.setNoteFilter(it) },
-                                currentColorFilter = colorFilter, // 🆕 v2.5.0
-                                onColorFilterSelected = { viewModel.setColorFilter(it) }, // 🆕 v2.5.0
-                                availableColors = availableColors, // 🆕 v2.5.0
-                                archiveActive = showArchived, // 🆕 v2.11.0 (Archive)
-                                onArchiveToggle = { viewModel.setShowArchived(!showArchived) }, // 🆕 v2.11.0 (Archive)
-                                searchQuery = searchQuery,
-                                onSearchQueryChanged = { viewModel.setSearchQuery(it) },
-                                onSortClick = { showSortDialog = true },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            Column {
+                                FilterChipRow(
+                                    currentFilter = noteFilter,
+                                    onFilterSelected = { viewModel.setNoteFilter(it) },
+                                    currentColorFilter = colorFilter,
+                                    onColorFilterSelected = { viewModel.setColorFilter(it) },
+                                    availableColors = availableColors,
+                                    archiveActive = showArchived,
+                                    onArchiveToggle = { viewModel.setShowArchived(!showArchived) },
+                                    searchQuery = searchQuery,
+                                    onSearchQueryChanged = { viewModel.setSearchQuery(it) },
+                                    onSortClick = { showSortDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                SearchScopeRow(
+                                    filter = noteFilter,
+                                    onFilter = viewModel::setNoteFilter,
+                                    folder = searchFolder,
+                                    folderNames = folders.map { it.name },
+                                    onFolder = viewModel::setSearchFolder
+                                )
+                            }
                         }
 
                         // 🆕 v2.7.0 (Folders): Ordner-Navigation mit Shared-Axis-Animation (wie Notiz öffnen).

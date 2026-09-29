@@ -1,0 +1,4 @@
+• Google Drive : état visible, dernière réussite mémorisée et bouton pour réessayer.
+• Accès direct à la corbeille depuis l’accueil ; restauration pendant 30 jours par défaut.
+• Ajout de widgets depuis l’application : création rapide ou affichage d’une note.
+• Recherche sans accents, par dossier et par type, avec filtres dessins/images et audio.
