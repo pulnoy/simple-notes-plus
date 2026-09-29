@@ -1,0 +1,4 @@
+• Google Drive: sichtbarer Status, gespeicherte letzte erfolgreiche Synchronisierung und erneuter Versuch.
+• Papierkorb direkt vom Startbildschirm; standardmäßig 30 Tage Aufbewahrung.
+• Widgets aus der App hinzufügen: schnelle Notiz oder ausgewählte Notiz anzeigen.
+• Suche ohne Akzente, Ordnerauswahl und Filter für Zeichnungen/Bilder oder Audio.

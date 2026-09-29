@@ -10,7 +10,7 @@ import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.Folder
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteFilter
-import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.NoteSearch
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
 import dev.dettmer.simplenotes.models.SyncStatus
@@ -403,8 +403,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // 🆕 v2.7.0 (Folders): Ordner-Filter ist NICHT mehr Teil dieser Pipeline — er wird erst
     // pro AnimatedContent-Pane angewandt (sonst Flackern beim Ordnerwechsel, siehe MainScreen).
     // 🆕 v2.11.0 (Archive): + showArchived → Triple statt Pair.
-    private val filterCriteria =
-        combine(_noteFilter, _colorFilter, _showArchived) { f, c, a -> Triple(f, c, a) }
+    private val _searchFolder = MutableStateFlow<String?>(null)
+    val searchFolder: StateFlow<String?> = _searchFolder.asStateFlow()
+
+    private data class SearchCriteria(val type: NoteFilter, val color: String?, val archived: Boolean, val folder: String?)
+
+    private val filterCriteria = combine(_noteFilter, _colorFilter, _showArchived, _searchFolder) { f, c, a, folder ->
+        SearchCriteria(f, c, a, folder)
+    }
 
     // 🆕 v1.9.0 (F10): Search Query State
     private val _searchQuery = MutableStateFlow("")
@@ -437,10 +443,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Variable delay: 0ms when clearing the query so "clear search" feels instant.
         _searchQuery.debounce { query -> if (query.isBlank()) 0L else SEARCH_DEBOUNCE_MS }
     ) { notes, option, direction, filterCriteria, query ->
-        val (filter, colorFilter, showArchived) = filterCriteria
-        val filtered = filterNotes(notes, filter, colorFilter, showArchived)
-        val searched = searchNotes(filtered, query)
-        _searchActive.value = query.isNotBlank() // 🆕 v2.16.0 (#141): synchron zur ausgelieferten Liste
+        val folder = filterCriteria.folder
+        val filtered = filterNotes(notes, filterCriteria.type, filterCriteria.color, filterCriteria.archived)
+        val scoped = if (folder == null) filtered else filtered.filter { it.folderName.orEmpty() == folder }
+        val searched = NoteSearch.search(scoped, query)
+        _searchActive.value = query.isNotBlank() || folder != null || filterCriteria.type != NoteFilter.ALL
         val sorted = sortNotes(searched, option, direction)
         val result = sorted.filter { it.isPinned == true } + sorted.filter { it.isPinned != true }
 
@@ -1141,7 +1148,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadNotes(forceReload = true)
                 refreshFolders()
                 SyncStateManager.markCompleted("Google Drive: synchronisation terminée")
-                if (result.downloaded > 0) _syncCompletedScrollToTop.value = true
+                if (result.downloaded > 0) {
+                    _syncCompletedScrollToTop.value = true
+                    WidgetUpdateHelper.refreshAllWidgets(getApplication())
+                }
             } catch (e: Exception) {
                 SyncStateManager.markError(e.message)
             }
@@ -1413,29 +1423,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // 🆕 v2.7.0 (Folders): Kein Ordner-Filter hier — das übernimmt jede Pane selbst (s. sortedNotesUnfoldered).
         // 🆕 v2.11.0 (Archive): Chip aus → nur aktive, Chip an → nur archivierte Notizen.
         val byArchive = notes.filter { it.isArchived == showArchived }
-        val byType = when (filter) {
-            NoteFilter.ALL -> byArchive
-            NoteFilter.TEXT_ONLY -> byArchive.filter { it.noteType == NoteType.TEXT }
-            NoteFilter.CHECKLIST_ONLY -> byArchive.filter { it.noteType == NoteType.CHECKLIST }
-        }
+        val byType = byArchive.filter { NoteSearch.matchesType(it, filter) }
         return if (colorFilter != null) byType.filter { it.color == colorFilter } else byType
-    }
-
-    /**
-     * 🆕 v1.9.0 (F10): Filters notes by search query across title and content.
-     * Empty query returns all notes unchanged.
-     * Checklist notes are searched by joining all item texts.
-     */
-    private fun searchNotes(notes: List<Note>, query: String): List<Note> {
-        if (query.isBlank()) return notes
-        val lowerQuery = query.trim().lowercase()
-        return notes.filter { note ->
-            note.title.lowercase().contains(lowerQuery) ||
-                note.content.lowercase().contains(lowerQuery) ||
-                note.checklistItems?.any { item ->
-                    item.text.lowercase().contains(lowerQuery)
-                } == true
-        }
     }
 
     /**
@@ -1516,11 +1505,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _showArchived // 🆕 v2.11.0 (Archive)
     ) { notes, filter, showArchived ->
         val visible = notes.filter { it.isArchived == showArchived }
-        val byType = when (filter) {
-            NoteFilter.ALL -> visible
-            NoteFilter.TEXT_ONLY -> visible.filter { it.noteType == NoteType.TEXT }
-            NoteFilter.CHECKLIST_ONLY -> visible.filter { it.noteType == NoteType.CHECKLIST }
-        }
+        val byType = visible.filter { NoteSearch.matchesType(it, filter) }
         byType.groupingBy { it.color }.eachCount()
     }.flowOn(Dispatchers.Default) // 🔧 Perf: filter+group of the full list off the Main thread
         .stateIn(
@@ -1928,6 +1913,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 🆕 v1.9.0 (F10): Setzt den Suchbegriff (session-only, nicht persistent).
      */
+    fun setSearchFolder(folder: String?) {
+        _searchFolder.value = folder
+    }
+
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
         Logger.d(TAG, "🔎 Search query changed to: \"$query\"")

@@ -28,7 +28,13 @@ class DriveSyncEngine(private val context: Context) {
     private val folders = FolderStore(context)
     private val assets = AssetStore(context)
 
-    suspend fun sync(): Outcome = mutex.withLock {
+    suspend fun sync(): Outcome {
+        val account = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(Constants.KEY_DRIVE_ACCOUNT_EMAIL, "").orEmpty()
+        return DriveSyncStatusStore(context).track(account) { syncNotes() }
+    }
+
+    private suspend fun syncNotes(): Outcome = mutex.withLock {
         withContext(Dispatchers.IO) {
             val token = DriveAuthorization.token(context)
                 ?: throw IOException("Reconnect Google Drive in synchronization settings")

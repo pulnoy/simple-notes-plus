@@ -1,0 +1,4 @@
+• Google Drive: visible status, saved last successful sync and retry action.
+• Home screen trash access, with 30-day retention by default.
+• Add widgets from the app: quick creation or display a selected note.
+• Accent-insensitive search, folder selection and drawings/images or audio filters.

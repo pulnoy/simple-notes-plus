@@ -1,6 +1,7 @@
 package dev.dettmer.simplenotes.ui.settings.screens
 
 import android.app.Activity
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dettmer.simplenotes.R
+import dev.dettmer.simplenotes.ui.main.components.DriveSyncStatus
 import dev.dettmer.simplenotes.sync.drive.DriveAuthorization
 import dev.dettmer.simplenotes.sync.drive.DriveAuthResult
 import dev.dettmer.simplenotes.ui.settings.SettingsViewModel
@@ -71,42 +73,54 @@ internal fun DriveSyncSection(viewModel: SettingsViewModel) {
                 }
             )
             if (driveSyncEnabled) {
+                DriveSyncStatus()
                 SettingsOutlinedButton(
                     text = stringResource(R.string.drive_sync_disconnect),
                     onClick = { viewModel.disableDriveSync() }
                 )
-            } else {
-                SettingsButton(
-                    text = stringResource(R.string.drive_sync_connect),
-                    isLoading = driveConnecting,
-                    onClick = {
-                        driveConnecting = true
-                        driveError = null
-                        DriveAuthorization.start(
-                            viewModel.getApplication(),
-                            onSuccess = { authorization ->
-                                val pending = authorization.pendingIntent
-                                if (pending != null) {
-                                    driveConsentLauncher.launch(
-                                        IntentSenderRequest.Builder(pending.intentSender).build()
-                                    )
-                                } else {
-                                    completeDriveConnection(authorization)
-                                }
-                            },
-                            onError = { error ->
-                                driveConnecting = false
-                                driveError = error.localizedMessage ?: driveConnectionError
-                            }
-                        )
-                    }
-                )
             }
+            SettingsButton(
+                text = stringResource(if (driveSyncEnabled) {
+                    R.string.drive_sync_reauthorize
+                } else {
+                    R.string.drive_sync_connect
+                }),
+                isLoading = driveConnecting,
+                onClick = {
+                    driveConnecting = true
+                    driveError = null
+                    beginDriveAuthorization(
+                        viewModel.getApplication(),
+                        onConsent = { driveConsentLauncher.launch(it) },
+                        onSuccess = completeDriveConnection,
+                        onError = { error ->
+                            driveConnecting = false
+                            driveError = error.localizedMessage ?: driveConnectionError
+                        }
+                    )
+                }
+            )
             driveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
 
+}
+
+private fun beginDriveAuthorization(
+    context: Context,
+    onConsent: (IntentSenderRequest) -> Unit,
+    onSuccess: (DriveAuthResult) -> Unit,
+    onError: (Exception) -> Unit
+) {
+    DriveAuthorization.start(context, onSuccess = { authorization ->
+        val pending = authorization.pendingIntent
+        if (pending != null) {
+            onConsent(IntentSenderRequest.Builder(pending.intentSender).build())
+        } else {
+            onSuccess(authorization)
+        }
+    }, onError = onError)
 }
 
 private suspend fun connectDriveAccount(
