@@ -1,0 +1,1 @@
+Dossiers : ordre personnalisable, icônes et couleurs de fond. Sous-dossiers avec navigation vers le parent. Hiérarchie conservée dans les sauvegardes et Google Drive.

@@ -1,5 +1,12 @@
 # Historique de Simple Notes+
 
+## [0.1.9] - Dossiers personnalisables
+
+- Réorganisation des dossiers dans le tiroir avec Monter et Descendre.
+- Choix de douze icônes et onze couleurs de fond.
+- Sous-dossiers affichés avec les notes et navigation vers le dossier parent.
+- Conservation de la hiérarchie et des styles dans la sauvegarde et la synchronisation.
+
 ## [0.1.8] - Paramètres et corrections
 
 - Traductions françaises complétées dans les paramètres et les fonctions associées.

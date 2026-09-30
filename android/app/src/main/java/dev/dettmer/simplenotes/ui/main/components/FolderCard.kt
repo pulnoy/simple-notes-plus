@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.outlined.SyncDisabled
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,8 +37,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.dettmer.simplenotes.R
+import dev.dettmer.simplenotes.models.Folder
 import dev.dettmer.simplenotes.ui.theme.NoteColorPalette
 
 /** 🆕 v2.7.0 (Folders): Ordnerkarte in voller Breite (List-Ansicht). */
@@ -49,13 +50,14 @@ internal fun FolderCardList(
     name: String,
     count: Int,
     modifier: Modifier = Modifier,
-    color: String? = null,
+    appearance: Folder? = null,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
     isLocalOnly: Boolean = false, // 🆕 v2.8.0 (Local-Only Folders)
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val color = appearance?.color
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val container = NoteColorPalette.resolveContainer(color, isDark)
         .takeOrElse { MaterialTheme.colorScheme.surfaceContainerHigh }
@@ -84,9 +86,9 @@ internal fun FolderCardList(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Folder,
+                    imageVector = folderIcon(appearance?.icon),
                     contentDescription = stringResource(R.string.cd_folder_card, name),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(text = name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -117,13 +119,14 @@ internal fun FolderCardGrid(
     name: String,
     count: Int,
     modifier: Modifier = Modifier,
-    color: String? = null,
+    appearance: Folder? = null,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
     isLocalOnly: Boolean = false, // 🆕 v2.8.0 (Local-Only Folders)
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val color = appearance?.color
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val container = NoteColorPalette.resolveContainer(color, isDark)
         .takeOrElse { MaterialTheme.colorScheme.surfaceContainerHigh }
@@ -147,22 +150,16 @@ internal fun FolderCardGrid(
         )
     ) {
         Box {
-            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = stringResource(R.string.cd_folder_card, name),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = folderIcon(appearance?.icon),
+                    contentDescription = stringResource(R.string.cd_folder_card, name),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = name, style = MaterialTheme.typography.titleSmall, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

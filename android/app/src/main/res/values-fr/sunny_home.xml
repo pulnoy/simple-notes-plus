@@ -6,7 +6,7 @@
     <string name="home_folder_menu">Gérer le dossier %1$s</string>
     <string name="home_rename">Renommer</string>
     <string name="home_delete_folder">Supprimer le dossier</string>
-    <string name="home_delete_keep_notes">Supprimer « %1$s » ? Ses notes seront conservées dans Toutes. Vous pourrez annuler cette action.</string>
+    <string name="home_delete_keep_notes">Supprimer « %1$s » et ses sous-dossiers ? Toutes leurs notes seront conservées dans Toutes. Vous pourrez annuler cette action.</string>
     <string name="home_voice_memo">Mémo vocal</string>
     <string name="home_note_actions">Sélectionner la note et afficher les actions</string>
     <string name="home_photo_pending">Photo indisponible ou en attente de synchronisation</string>

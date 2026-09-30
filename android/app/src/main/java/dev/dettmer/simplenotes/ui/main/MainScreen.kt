@@ -100,6 +100,9 @@ import dev.dettmer.simplenotes.ui.main.components.HomeFolderActions
 import dev.dettmer.simplenotes.ui.main.components.SunnyHomeControls
 import dev.dettmer.simplenotes.ui.main.components.FolderNavigation
 import dev.dettmer.simplenotes.ui.main.components.FolderDestinations
+import dev.dettmer.simplenotes.ui.main.components.FolderAppearanceSheet
+import dev.dettmer.simplenotes.ui.main.components.FolderBreadcrumb
+import dev.dettmer.simplenotes.models.childrenOf
 import dev.dettmer.simplenotes.ui.theme.LocalHomeAccent
 import dev.dettmer.simplenotes.ui.main.components.MoveToFolderSheet
 import dev.dettmer.simplenotes.ui.main.components.NoteColorPickerSheet
@@ -195,7 +198,7 @@ private fun MainScreenContent(
         viewModel.clearSelection()
     }
     BackHandler(enabled = !isSelectionMode && currentFolder != null) {
-        viewModel.goToRoot()
+        viewModel.goToParentFolder()
     }
 
     val isServerConfigured by viewModel.isServerConfigured.collectAsState()
@@ -226,6 +229,8 @@ private fun MainScreenContent(
     var showBatchColorPicker by remember { mutableStateOf(false) }
     // 🆕 v2.7.0 (Folders): folder dialogs
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var createFolderParent by remember { mutableStateOf<String?>(null) }
+    var folderToCustomize by remember { mutableStateOf<String?>(null) }
     var folderToRename by remember { mutableStateOf<String?>(null) }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showMoveSheet by remember { mutableStateOf(false) }
@@ -306,9 +311,12 @@ private fun MainScreenContent(
             showAllNotes = name == null
             if (name == null) viewModel.goToRoot() else viewModel.enterFolder(name)
         },
-        add = { showCreateFolderDialog = true },
+        add = { createFolderParent = null; showCreateFolderDialog = true },
         rename = { folderToRename = it; showRenameDialog = true },
-        delete = { folderToDelete = it }
+        delete = { folderToDelete = it },
+        customize = { folderToCustomize = it },
+        move = viewModel::moveFolder,
+        addChild = { createFolderParent = it; showCreateFolderDialog = true }
     )
     BackHandler(enabled = !folderDrawer && !isSelectionMode && showAllNotes) { showAllNotes = false }
     FolderNavigation(folderDrawer, folders, currentFolder, folderActions) { openFolders ->
@@ -420,6 +428,9 @@ private fun MainScreenContent(
                             SunnyHomeControls(
                                 query = searchQuery, onQuery = { viewModel.setSearchQuery(it) }
                             )
+                            if (currentFolder != null) {
+                                FolderBreadcrumb(folders, currentFolder, viewModel::goToParentFolder)
+                            }
                             // 🆕 v1.9.0 (F06): Filter Chip Row
                             // 🆕 v1.9.0 (F10): + Inline search field
                             // 🆕 v1.9.0 (F11): + Sort chip + toggle visibility
@@ -478,10 +489,11 @@ private fun MainScreenContent(
                             ) { folderKey ->
                                 val folderHome = !folderDrawer && folderKey == null && !showAllNotes
                                 if (folderHome && !searchActive && !showArchived) {
-                                    FolderDestinations(folders, null, folderActions)
+                                    FolderDestinations(folders.childrenOf(null), null, folderActions)
                                 } else {
                                     NotesPane(
                                         folderKey = folderKey,
+                                        folders = folders,
                                         isActive = folderKey == currentFolder,
                                         notes = notes,
                                         sortOption = sortOption,
@@ -592,13 +604,21 @@ private fun MainScreenContent(
             // 🆕 v2.7.0 (Folders): Folder dialogs/sheet
             if (showCreateFolderDialog) {
                 CreateFolderDialog(
+                    parentName = createFolderParent,
+                    existingNames = folders.map { it.name },
                     showLocalOnlyOption = isServerConfigured, // 🆕 v2.8.0 (Local-Only Folders)
                     onConfirm = { name, localOnly ->
-                        viewModel.createFolder(name, localOnly)
+                        viewModel.createFolder(name, localOnly, createFolderParent)
                         showCreateFolderDialog = false
                     },
                     onDismiss = { showCreateFolderDialog = false }
                 )
+            }
+            folders.firstOrNull { it.name == folderToCustomize }?.let { folder ->
+                FolderAppearanceSheet(folder, onSave = { icon, color ->
+                    viewModel.setFolderAppearance(folder.name, icon, color)
+                    folderToCustomize = null
+                }, onDismiss = { folderToCustomize = null })
             }
             // 🆕 v2.8.0 (Local-Only Folders): Auswahl was mit den Server-Kopien passieren soll
             if (showExcludeSyncSheet) {
@@ -679,9 +699,10 @@ private fun MainScreenContent(
                     .zIndex(Float.MAX_VALUE)
             ) {
                 NoteTypeFAB(
-                    showCreateFolder = currentFolder == null,
+                    showCreateFolder = true,
+                    createFolderLabel = if (currentFolder != null) R.string.folder_create_child else R.string.fab_create_folder,
                     onCreateNote = { action -> onCreateNote(action, currentFolder) },
-                    onCreateFolder = { showCreateFolderDialog = true }
+                    onCreateFolder = { createFolderParent = currentFolder; showCreateFolderDialog = true }
                 )
             }
         } // end outer Box
@@ -872,6 +893,7 @@ private fun folderNavTransition(forward: Boolean): ContentTransform {
 @Composable
 private fun NotesPane(
     folderKey: String?,
+    folders: List<Folder>,
     isActive: Boolean,
     notes: List<Note>,
     sortOption: SortOption, // 🔧 aktive Sortierung — nur Remember-Key, damit die aktive Pane sofort reagiert
@@ -918,7 +940,7 @@ private fun NotesPane(
     val listState = remember(folderKey) { LazyListState() }
     val gridState = remember(folderKey) { LazyStaggeredGridState() }
     // Ordner nur in der Root-Ansicht — und nicht während einer Suche, die ohnehin flach über alles geht
-    val foldersForPane = emptyList<Folder>()
+    val foldersForPane = if (folderKey != null && !searchActive && !showArchived) folders.childrenOf(folderKey) else emptyList()
     // 🆕 v2.7.0 (Folders): Notizen dieses Slots — eigener folderKey, nicht der gerade aktive Ordner.
     // 🆕 v2.11.0 (Archive): Archiv-Ansicht ist eine flache Liste über alle Ordner.
     // 🆕 v2.16.0 (#141): Suche ebenso — sonst zeigt die Root-Ansicht nur Root-Treffer und

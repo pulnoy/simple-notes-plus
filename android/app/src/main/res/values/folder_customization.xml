@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folder_create_child">New subfolder</string>
+    <string name="folder_parent_label">In: %1$s</string>
+    <string name="folder_name_duplicate">This folder name is already in use.</string>
+    <string name="folder_customize">Icon and background</string>
+    <string name="folder_move_up">Move up</string>
+    <string name="folder_move_down">Move down</string>
+    <string name="folder_go_parent">Parent folder</string>
+    <string name="folder_icon_title">Choose an icon</string>
+    <string name="folder_background_title">Background colour</string>
+    <string name="folder_save_appearance">Save</string>
+    <string name="folder_icon_folder">Folder</string>
+    <string name="folder_icon_person">Personal</string>
+    <string name="folder_icon_home">Home</string>
+    <string name="folder_icon_work">Work</string>
+    <string name="folder_icon_favorite">Favourite</string>
+    <string name="folder_icon_school">Studies</string>
+    <string name="folder_icon_travel">Travel</string>
+    <string name="folder_icon_shopping">Shopping</string>
+    <string name="folder_icon_photo">Photos</string>
+    <string name="folder_icon_audio">Voice</string>
+    <string name="folder_icon_calendar">Calendar</string>
+    <string name="folder_icon_star">Star</string>
+</resources>

@@ -38,6 +38,7 @@ import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.ChecklistItem
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteType
+import dev.dettmer.simplenotes.models.childrenOf
 import dev.dettmer.simplenotes.storage.FolderStore
 import dev.dettmer.simplenotes.storage.NotesStorage
 import dev.dettmer.simplenotes.utils.Constants
@@ -84,6 +85,75 @@ class SunnyHomeTest {
         model = MainViewModel(app)
         compose.setContent { SimpleNotesTheme(themeMode = ThemeMode.LIGHT, colorTheme = ColorTheme.YELLOW) { MainScreen(model, {}, {}, { _, _ -> }) } }
         compose.waitUntil(15_000) { model.isReady.value && model.sortedNotesUnfoldered.value.size >= 4 }
+    }
+
+    @Test fun customizedFoldersCanBeReorderedNestedRenamedAndDeletedWithoutLosingNotes() {
+        model.createFolder("Dossier famille")
+        model.createFolder("Dossier travail")
+        compose.waitUntil(10_000) { model.folders.value.any { it.name == "Dossier travail" } }
+        openFolders()
+        folderMenu("Dossier famille", R.string.folder_move_down)
+        compose.waitUntil(10_000) {
+            val roots = model.folders.value.childrenOf(null).map { it.name }
+            roots.indexOf("Dossier famille") > roots.indexOf("Dossier travail")
+        }
+        folderMenu("Dossier famille", R.string.folder_customize)
+        compose.onNodeWithText(app.getString(R.string.folder_icon_home)).performClick()
+        compose.onNodeWithContentDescription(app.getString(R.string.cd_note_color_swatch,
+            app.getString(R.string.note_color_yellow))).performClick()
+        compose.onNodeWithText(app.getString(R.string.folder_save_appearance)).performClick()
+        compose.waitUntil(10_000) { model.folders.value.any {
+            it.name == "Dossier famille" && it.icon == "home" && it.color == "#FFF475"
+        } }
+        openFolders()
+        compose.onNodeWithTag("home_folder_Dossier famille").performClick()
+        openFolders()
+        folderMenu("Dossier famille", R.string.folder_create_child)
+        createNamedFolder("Voyage été")
+        compose.waitUntil(10_000) { model.folders.value.any { it.name == "Voyage été" && it.parentName == "Dossier famille" } }
+        compose.onNodeWithContentDescription(app.getString(R.string.cd_folder_card, "Voyage été")).assertIsDisplayed()
+        screenshot("subfolders-home.png")
+        compose.onNodeWithContentDescription(app.getString(R.string.cd_folder_card, "Voyage été")).performClick()
+        compose.waitUntil(10_000) { model.currentFolder.value == "Voyage été" }
+        openFolders()
+        folderMenu("Voyage été", R.string.folder_create_child)
+        createNamedFolder("Photos voyage")
+        compose.waitUntil(10_000) { model.folders.value.any { it.name == "Photos voyage" && it.parentName == "Voyage été" } }
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_go_parent)).performClick()
+        compose.waitUntil(10_000) { model.currentFolder.value == "Dossier famille" }
+        openFolders()
+        screenshot("customized-drawer.png")
+        folderMenu("Dossier famille", R.string.home_rename)
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("Famille renommée")
+        compose.onNodeWithText(app.getString(R.string.folder_rename_action)).performClick()
+        compose.waitUntil(10_000) { model.folders.value.any { it.name == "Voyage été" && it.parentName == "Famille renommée" } }
+        runBlocking {
+            NotesStorage(app).saveNote(Note(id = "folder-tree-note", title = "Souvenir à conserver", content = "Test",
+                deviceId = "ui-test", folderName = "Photos voyage"))
+        }
+        model.loadNotes(forceReload = true)
+        compose.waitUntil(10_000) { model.notes.value.any { it.id == "folder-tree-note" } }
+        openFolders()
+        folderMenu("Famille renommée", R.string.home_delete_folder)
+        compose.onNode(hasText(app.getString(R.string.home_delete_folder)) and hasClickAction()).performClick()
+        compose.waitUntil(10_000) { model.folders.value.none { it.name in setOf("Famille renommée", "Voyage été", "Photos voyage") } }
+        compose.waitUntil(10_000) { model.notes.value.any { it.id == "folder-tree-note" && it.folderName == null } }
+        val saved = runBlocking { FolderStore(app).loadFolders() }
+        assertEquals(model.folders.value, saved)
+        model.startSelectionWithFolder("Dossier travail")
+        model.deleteSelection(keepContainedNotes = true)
+        compose.waitUntil(10_000) { model.folders.value.none { it.name == "Dossier travail" } }
+    }
+
+    private fun folderMenu(name: String, action: Int) {
+        compose.onNodeWithContentDescription(app.getString(R.string.home_folder_menu, name)).performClick()
+        compose.onNodeWithText(app.getString(action)).performClick()
+        compose.waitForIdle()
+    }
+
+    private fun createNamedFolder(name: String) {
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement(name)
+        compose.onNodeWithText(app.getString(R.string.folder_create_action)).performClick()
     }
 
     @Test fun homeShowsMediaAndFoldersAndSupportsFolderLifecycle() {

@@ -68,6 +68,7 @@ import dev.dettmer.simplenotes.models.NewNoteAction
 fun NoteTypeFAB(
     modifier: Modifier = Modifier,
     showCreateFolder: Boolean = false, // 🆕 v2.7.0 (Folders): nur im Root true
+    createFolderLabel: Int = R.string.fab_create_folder,
     onCreateNote: (NewNoteAction) -> Unit,
     onCreateFolder: () -> Unit = {}
 ) {
@@ -136,7 +137,7 @@ fun NoteTypeFAB(
             // 🆕 v2.7.0 (Folders): "New folder" pill only in root view
             if (showCreateFolder && expanded) {
                 FabSubActionRow(
-                    label = stringResource(R.string.fab_create_folder),
+                    label = stringResource(createFolderLabel),
                     icon = Icons.Outlined.CreateNewFolder,
                     scale = 1f,
                     alpha = 1f,

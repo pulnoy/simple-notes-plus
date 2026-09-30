@@ -39,19 +39,23 @@ import dev.dettmer.simplenotes.utils.FolderNameValidator
 fun CreateFolderDialog(
     onConfirm: (name: String, localOnly: Boolean) -> Unit,
     onDismiss: () -> Unit,
-    showLocalOnlyOption: Boolean = false
+    showLocalOnlyOption: Boolean = false,
+    parentName: String? = null,
+    existingNames: List<String> = emptyList()
 ) {
     var text by remember { mutableStateOf("") }
     var localOnly by remember { mutableStateOf(false) }
-    val valid = FolderNameValidator.isValid(text)
+    val duplicate = existingNames.any { it.equals(text.trim(), ignoreCase = true) }
+    val valid = FolderNameValidator.isValid(text) && !duplicate
     val showError = text.isNotEmpty() && !valid
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.folder_create_title)) },
+        title = { Text(stringResource(if (parentName == null) R.string.folder_create_title else R.string.folder_create_child)) },
         text = {
             Column {
+                if (parentName != null) Text(stringResource(R.string.folder_parent_label, parentName))
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
@@ -65,7 +69,7 @@ fun CreateFolderDialog(
                 )
                 if (showError) {
                     Text(
-                        text = stringResource(R.string.folder_name_invalid),
+                        text = stringResource(if (duplicate) R.string.folder_name_duplicate else R.string.folder_name_invalid),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )

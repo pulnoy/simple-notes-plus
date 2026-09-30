@@ -6,7 +6,7 @@
     <string name="home_folder_menu">Manage folder %1$s</string>
     <string name="home_rename">Rename</string>
     <string name="home_delete_folder">Delete folder</string>
-    <string name="home_delete_keep_notes">Delete “%1$s”? Its notes will be kept in All. You can undo this action.</string>
+    <string name="home_delete_keep_notes">Delete “%1$s” and its subfolders? All their notes will be kept in All. You can undo this action.</string>
     <string name="home_voice_memo">Voice memo</string>
     <string name="home_note_actions">Select note and show actions</string>
     <string name="home_photo_pending">Photo unavailable or waiting for sync</string>

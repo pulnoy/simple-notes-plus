@@ -126,7 +126,7 @@ fun NoteColorPickerSheet(
  * - [isSelected]     → checkmark overlay, thicker selection ring
  */
 @Composable
-private fun ColorSwatch(
+internal fun ColorSwatch(
     swatchColor: Color,
     isSelected: Boolean,
     isNone: Boolean,
@@ -177,7 +177,7 @@ private fun ColorSwatch(
 }
 
 /** Maps each [NoteColorSlot] to its string-resource id for display. */
-private fun NoteColorSlot.labelRes(): Int =
+internal fun NoteColorSlot.labelRes(): Int =
     when (hex) {
         "#F28B82" -> R.string.note_color_red
         "#FBBC04" -> R.string.note_color_orange

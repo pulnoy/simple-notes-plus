@@ -29,6 +29,7 @@ import dev.dettmer.simplenotes.ui.theme.SimpleNotesTheme
 import dev.dettmer.simplenotes.ui.theme.ThemeMode
 import dev.dettmer.simplenotes.ui.theme.ThemePreferences
 import dev.dettmer.simplenotes.utils.Constants
+import dev.dettmer.simplenotes.storage.FolderStore
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -132,8 +133,8 @@ class SettingsRegressionTest {
             compose.waitForIdle()
             compose.runOnIdle { assertEquals(route.route, navigation.currentDestination?.route) }
             if (route == SettingsRoute.Changelog) {
-                compose.waitUntil(10_000) { compose.onAllNodesWithText("v0.1.8").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithText("v0.1.8").assertIsDisplayed()
+                compose.waitUntil(10_000) { compose.onAllNodesWithText("v0.1.9").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("v0.1.9").assertIsDisplayed()
             }
             compose.runOnIdle { navigation.popBackStack() }
             compose.waitForIdle()
@@ -150,6 +151,24 @@ class SettingsRegressionTest {
         ThemePreferences.setFolderDrawer(prefs, true)
         assertTrue(manager.restoreBackup(uri, RestoreMode.MERGE, restoreServerSettings = true).success)
         assertFalse(ThemePreferences.getFolderDrawer(prefs))
+    }
+
+    @Test fun backupRestoresFolderHierarchyIconsColoursAndOrder() = runBlocking {
+        val store = FolderStore(app)
+        store.addFolder("Sauvegarde dossiers")
+        store.addFolder("Sous-dossier sauvegardé", parentName = "Sauvegarde dossiers")
+        store.setAppearance("Sauvegarde dossiers", "work", "#FFF475")
+        store.setAppearance("Sous-dossier sauvegardé", "photo", "#AECBFA")
+        store.moveFolder("Sauvegarde dossiers", -1)
+        val before = store.loadFolders().toSet()
+        val uri = Uri.fromFile(File(app.cacheDir, "folder-hierarchy-backup.json"))
+        val manager = BackupManager(app)
+        assertTrue(manager.createBackup(uri, includeServerSettings = false).success)
+        store.clear()
+        assertTrue(manager.restoreBackup(uri, RestoreMode.MERGE, restoreServerSettings = false).success)
+        assertEquals(before, store.loadFolders().toSet())
+        store.deleteFolder("Sous-dossier sauvegardé")
+        store.deleteFolder("Sauvegarde dossiers")
     }
 
     @Test fun allThreeImageCompressionModesProcessRealImages() = runBlocking {

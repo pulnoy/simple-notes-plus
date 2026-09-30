@@ -39,7 +39,10 @@ fun FolderNavigation(
         select = { closeThen { actions.select(it) } },
         add = { closeThen(actions.add) },
         rename = { closeThen { actions.rename(it) } },
-        delete = { closeThen { actions.delete(it) } }
+        delete = { closeThen { actions.delete(it) } },
+        customize = { closeThen { actions.customize(it) } },
+        move = actions.move,
+        addChild = { closeThen { actions.addChild(it) } }
     )
     ModalNavigationDrawer(
         drawerState = state, gesturesEnabled = enabled,

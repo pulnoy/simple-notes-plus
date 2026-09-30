@@ -1,0 +1,1 @@
+Ordner sortieren, Symbole und Hintergrundfarben wählen. Unterordner mit Navigation zum übergeordneten Ordner. Hierarchie bleibt in Sicherung und Drive-Synchronisierung erhalten.

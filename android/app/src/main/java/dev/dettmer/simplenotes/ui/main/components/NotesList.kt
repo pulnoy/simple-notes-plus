@@ -163,7 +163,7 @@ fun NotesList(
                                 FolderCardList(
                                     name = folder.name,
                                     count = folderNoteCounts[folder.name] ?: 0,
-                                    color = folder.color,
+                                    appearance = folder,
                                     isSelected = folder.name in selectedFolders,
                                     isSelectionMode = isSelectionMode, // 🆕 v2.7.0 (Folders)
                                     isLocalOnly = folder.name in localOnlyFolderNames, // 🆕 v2.8.0 (Local-Only Folders)
