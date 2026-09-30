@@ -1,0 +1,1 @@
+Paramètres entièrement traduits en français. Correction des icônes de notes et de la longueur d’aperçu en vue liste. Le choix du tiroir est inclus dans les sauvegardes.

@@ -132,7 +132,7 @@ fun NotesList(
                                     timestampTicker = timestampTicker,
                                     previewLength = previewLength,
                                     showTimestamp = showTimestamp,
-                                    showTypeIcon = showTypeIcon,
+                                    showTypeIcon = showTypeIcon, listMode = true,
                                     showFolderLabel = showFolderLabels,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                                     onClick = {
@@ -206,7 +206,7 @@ fun NotesList(
                                 timestampTicker = timestampTicker,
                                 previewLength = previewLength,
                                 showTimestamp = showTimestamp,
-                                showTypeIcon = showTypeIcon,
+                                showTypeIcon = showTypeIcon, listMode = true,
                                 showFolderLabel = showFolderLabels,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = { if (isSelectionMode) onNoteSelectionToggle(note) else onNoteClick(note) },

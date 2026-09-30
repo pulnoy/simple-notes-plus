@@ -87,7 +87,8 @@ fun SettingsMainScreen(
     val currentLanguageName = if (locales.isEmpty) {
         null // System default
     } else {
-        locales[0]?.displayLanguage?.replaceFirstChar { it.uppercase() }
+        locales[0]?.getDisplayLanguage(context.resources.configuration.locales[0])
+            ?.replaceFirstChar { it.uppercase() }
     }
     val systemDefaultText = stringResource(R.string.language_system_default)
     val languageSubtitle = currentLanguageName ?: systemDefaultText

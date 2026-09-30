@@ -7,6 +7,12 @@ import dev.dettmer.simplenotes.ui.theme.SimpleNotesTheme
 import dev.dettmer.simplenotes.ui.theme.ThemePreferences
 import dev.dettmer.simplenotes.ui.theme.ColorTheme
 import dev.dettmer.simplenotes.ui.theme.ThemeMode
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import dev.dettmer.simplenotes.ui.settings.SettingsViewModel
+import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
+import org.junit.Assert.assertEquals
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.geometry.Offset
@@ -51,6 +57,12 @@ class SunnyHomeTest {
     private lateinit var model: MainViewModel
 
     @Before fun prepareHome() {
+        val preferences = app.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        preferences.edit().putString(Constants.KEY_DISPLAY_MODE, "grid")
+            .putBoolean(Constants.KEY_SHOW_NOTE_TIMESTAMP, true)
+            .putBoolean(Constants.KEY_SHOW_NOTE_TYPE_ICON, true)
+            .putString(Constants.KEY_CUSTOM_APP_TITLE, "").apply()
+        ThemePreferences.setNotePreviewLength(preferences, NotePreviewLength.STANDARD)
         prepareMediaFixtures()
         runBlocking {
             FolderStore(app).addFolder("Personnel")
@@ -182,6 +194,46 @@ class SunnyHomeTest {
         compose.onNodeWithText("Courses").assertDoesNotExist()
     }
 
+    @Test fun cardDisplayOptionsActuallyChangeTheHome() {
+        val settings = SettingsViewModel(app)
+        settings.setShowNoteTimestamp(false)
+        settings.setShowNoteTypeIcon(false)
+        model.refreshNoteCardDisplaySettings()
+        compose.onNodeWithTag("note_timestamp_sunny-demo-pinned", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("note_type_sunny-demo-pinned", useUnmergedTree = true).assertDoesNotExist()
+        settings.setShowNoteTimestamp(true)
+        settings.setShowNoteTypeIcon(true)
+        model.refreshNoteCardDisplaySettings()
+        compose.onNodeWithTag("note_timestamp_sunny-demo-pinned", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("note_type_sunny-demo-pinned", useUnmergedTree = true).assertIsDisplayed()
+        settings.setNotePreviewLength(NotePreviewLength.TITLE_ONLY)
+        model.refreshNotePreviewLength()
+        compose.onNodeWithContentDescription(app.getString(R.string.home_photo_preview)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(app.getString(R.string.home_play_audio)).assertDoesNotExist()
+        settings.setNotePreviewLength(NotePreviewLength.COMPACT)
+        model.refreshNotePreviewLength()
+        runBlocking {
+            NotesStorage(app).saveNote(Note(id = "settings-preview", title = "Aperçu réglable",
+                content = "Ligne 1\nLigne 2\nLigne 3\nLigne 4\nLigne 5", deviceId = "ui-test"))
+        }
+        model.loadNotes(forceReload = true)
+        model.setSearchQuery("Aperçu réglable")
+        compose.waitUntil(10_000) { model.sortedNotesUnfoldered.value.singleOrNull()?.id == "settings-preview" }
+        assertPreviewLines(NotePreviewLength.COMPACT.gridLargeLines)
+        settings.setDisplayMode("list")
+        model.refreshDisplayMode()
+        assertPreviewLines(NotePreviewLength.COMPACT.listLines)
+        settings.setCustomAppTitle("Mes essais")
+        model.refreshCustomAppTitle()
+        compose.onNodeWithText("Mes essais").assertIsDisplayed()
+    }
+
+    private fun assertPreviewLines(expected: Int) {
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithTag("note_preview_settings-preview", useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(expected, layouts.single().layoutInput.maxLines)
+    }
     private fun openFolders() {
         compose.onNodeWithContentDescription(app.getString(R.string.home_open_folders)).performClick()
         compose.waitForIdle()

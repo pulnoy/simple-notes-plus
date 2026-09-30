@@ -86,6 +86,7 @@ enum class NotePreviewLength(
  * v2.0.0: Multi-theme system
  */
 object ThemePreferences {
+    const val KEY_FOLDER_DRAWER = "folder_drawer"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_COLOR_THEME = "color_theme"
     private const val KEY_FONT_SIZE_SCALE = "font_size_scale"
@@ -105,10 +106,10 @@ object ThemePreferences {
         return stored.toEnumOrDefault(ColorTheme.YELLOW)
     }
 
-    fun getFolderDrawer(prefs: SharedPreferences): Boolean = prefs.getBoolean("folder_drawer", true)
+    fun getFolderDrawer(prefs: SharedPreferences): Boolean = prefs.getBoolean(KEY_FOLDER_DRAWER, true)
 
     fun setFolderDrawer(prefs: SharedPreferences, enabled: Boolean) {
-        prefs.edit { putBoolean("folder_drawer", enabled) }
+        prefs.edit { putBoolean(KEY_FOLDER_DRAWER, enabled) }
     }
 
     fun setColorTheme(prefs: SharedPreferences, theme: ColorTheme) {

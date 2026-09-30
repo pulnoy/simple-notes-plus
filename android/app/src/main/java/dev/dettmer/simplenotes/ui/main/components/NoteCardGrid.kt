@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
@@ -61,11 +64,13 @@ fun NoteCardGrid(
     showTimestamp: Boolean = true,
     showTypeIcon: Boolean = true,
     showFolderLabel: Boolean = false,
+    listMode: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val display = remember(previewLength, showTimestamp, showFolderLabel, timestampTicker) {
-        CardDisplay(previewLength.gridLargeLines, previewLength.itemMaxLines, showTimestamp, showFolderLabel)
+    val display = remember(previewLength, showTimestamp, showFolderLabel, timestampTicker, listMode) {
+        CardDisplay(if (listMode) previewLength.listLines else previewLength.gridLargeLines,
+            previewLength.itemMaxLines, showTimestamp, showFolderLabel)
     }
     val shape = RoundedCornerShape(22.dp)
     Card(
@@ -109,6 +114,12 @@ private fun HomeCardTitle(note: Note, selected: Boolean, selectionMode: Boolean,
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (showPin) Icon(
+            if (note.noteType == NoteType.CHECKLIST) Icons.Default.Checklist else Icons.Outlined.Description,
+            stringResource(if (note.noteType == NoteType.CHECKLIST) R.string.fab_checklist else R.string.fab_text_note),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(19.dp).testTag("note_type_${note.id}")
+        )
         if (note.isPinned == true && showPin) Icon(Icons.Default.PushPin, stringResource(R.string.section_pinned),
             tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
@@ -132,7 +143,8 @@ private fun HomeCardBody(note: Note, display: CardDisplay) {
         val body = if (note.title.isBlank() && image == null && audio == null) text.substringAfter('\n', "") else text
         val preview = noteCardMarkdownPreview(body)
         if (preview.isNotBlank()) Text(preview, style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = display.lines, overflow = TextOverflow.Ellipsis)
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = display.lines,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("note_preview_${note.id}"))
     }
     if (image != null) HomePhotoPreview(image)
     if (audio != null) HomeAudioPreview(audio)
@@ -169,7 +181,8 @@ private fun HomeCardFooter(note: Note, display: CardDisplay, sync: Boolean) {
     val context = LocalContext.current
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (display.timestamp) Text(note.updatedAt.toReadableTime(context), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+            modifier = Modifier.weight(1f).testTag("note_timestamp_${note.id}"))
         if (display.folder && note.folderName != null) Text(note.folderName,
             style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 96.dp).background(

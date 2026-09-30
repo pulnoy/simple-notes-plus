@@ -1540,6 +1540,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         )
         _themeMode.value = ThemePreferences.getThemeMode(prefs)
         _colorTheme.value = ThemePreferences.getColorTheme(prefs)
+        _folderDrawer.value = ThemePreferences.getFolderDrawer(prefs)
         _customAppTitle.value =
             prefs.getString(Constants.KEY_CUSTOM_APP_TITLE, Constants.DEFAULT_CUSTOM_APP_TITLE)
                 ?: Constants.DEFAULT_CUSTOM_APP_TITLE

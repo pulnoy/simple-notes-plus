@@ -162,6 +162,9 @@ class BackupManager(private val context: Context, private val ioDispatcher: Coro
                         displayMode = prefs.getString(Constants.KEY_DISPLAY_MODE, null),
                         themeMode = prefs.getString("theme_mode", null),
                         colorTheme = prefs.getString("color_theme", null),
+                        folderDrawer = prefs.getBoolean("folder_drawer", true).takeIf {
+                            prefs.contains("folder_drawer")
+                        },
                         customAppTitle = prefs.getString(Constants.KEY_CUSTOM_APP_TITLE, null),
                         // Notes behaviour
                         autosaveEnabled = prefs.getBoolean(Constants.KEY_AUTOSAVE_ENABLED, true).takeIf {
@@ -410,6 +413,7 @@ class BackupManager(private val context: Context, private val ioDispatcher: Coro
                     s.displayMode?.let { putString(Constants.KEY_DISPLAY_MODE, it) }
                     s.themeMode?.let { putString("theme_mode", it) }
                     s.colorTheme?.let { putString("color_theme", it) }
+                    s.folderDrawer?.let { putBoolean("folder_drawer", it) }
                     s.customAppTitle?.let { putString(Constants.KEY_CUSTOM_APP_TITLE, it) }
                     // Notes behaviour
                     s.autosaveEnabled?.let { putBoolean(Constants.KEY_AUTOSAVE_ENABLED, it) }
@@ -838,7 +842,9 @@ data class AppSettings(
     @com.google.gson.annotations.SerializedName("grid_adaptive_scaling")
     val gridAdaptiveScaling: Boolean? = null,
     @com.google.gson.annotations.SerializedName("grid_manual_columns")
-    val gridManualColumns: Int? = null
+    val gridManualColumns: Int? = null,
+    @com.google.gson.annotations.SerializedName("folder_drawer")
+    val folderDrawer: Boolean? = null
 )
 
 /**
