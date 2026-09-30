@@ -46,6 +46,7 @@ enum class ThemeMode(val displayNameResId: Int, val previewColor: Color) {
  * v2.0.0: Multi-theme system
  */
 enum class ColorTheme(val displayNameResId: Int, val previewColor: Color) {
+    YELLOW(R.string.theme_color_yellow, SunnyColors.Yellow),
     DEFAULT(R.string.theme_color_default, Color(0xFF6750A4)),
     BLUE(R.string.theme_color_blue, Color(0xFF0062A1)),
     GREEN(R.string.theme_color_green, Color(0xFF276A25)),
@@ -100,8 +101,14 @@ object ThemePreferences {
     }
 
     fun getColorTheme(prefs: SharedPreferences): ColorTheme {
-        val stored = prefs.getString(KEY_COLOR_THEME, ColorTheme.DYNAMIC.name)
-        return stored.toEnumOrDefault(ColorTheme.DYNAMIC)
+        val stored = prefs.getString(KEY_COLOR_THEME, ColorTheme.YELLOW.name)
+        return stored.toEnumOrDefault(ColorTheme.YELLOW)
+    }
+
+    fun getFolderDrawer(prefs: SharedPreferences): Boolean = prefs.getBoolean("folder_drawer", true)
+
+    fun setFolderDrawer(prefs: SharedPreferences, enabled: Boolean) {
+        prefs.edit { putBoolean("folder_drawer", enabled) }
     }
 
     fun setColorTheme(prefs: SharedPreferences, theme: ColorTheme) {

@@ -431,6 +431,8 @@ object ColorPalettes {
     }
 
     private fun getStaticScheme(theme: ColorTheme, isDark: Boolean, isAmoled: Boolean): ColorScheme = when (theme) {
+        ColorTheme.YELLOW -> YellowPalette.scheme(isDark, isAmoled)
+
         ColorTheme.DEFAULT -> if (isDark) {
             if (isAmoled) DefaultDarkAmoledColors else DefaultDarkColors
         } else {

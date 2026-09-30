@@ -338,6 +338,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _notePreviewLength = MutableStateFlow(ThemePreferences.getNotePreviewLength(prefs))
     val notePreviewLength: StateFlow<NotePreviewLength> = _notePreviewLength.asStateFlow()
 
+    private val _folderDrawer = MutableStateFlow(ThemePreferences.getFolderDrawer(prefs))
+    val folderDrawer: StateFlow<Boolean> = _folderDrawer.asStateFlow()
+
+    fun setFolderDrawer(enabled: Boolean) {
+        _folderDrawer.value = enabled
+        ThemePreferences.setFolderDrawer(prefs, enabled)
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         ThemePreferences.setThemeMode(prefs, mode)

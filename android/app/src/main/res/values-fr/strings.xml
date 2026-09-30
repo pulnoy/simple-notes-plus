@@ -815,4 +815,9 @@
     <string name="drive_sync_account_missing">Compte Google introuvable. Réessayez.</string>
     <string name="drive_sync_authorization_incomplete">Autorisation Google Drive incomplète. Réessayez.</string>
     <string name="drive_sync_connection_error">Connexion à Google Drive impossible.</string>
+    <string name="theme_color_yellow">Jaune</string>
+    <string name="home_open_folders">Ouvrir les dossiers</string>
+    <string name="home_folders_title">Dossiers</string>
+    <string name="home_drawer_setting">Tiroir de dossiers</string>
+    <string name="home_drawer_setting_hint">Activé : bouton ou glissement depuis le bord gauche. Désactivé : accueil avec les dossiers uniquement.</string>
 </resources>

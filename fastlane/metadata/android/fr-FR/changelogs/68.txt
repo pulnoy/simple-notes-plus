@@ -1,0 +1,1 @@
+Tiroir de dossiers ouvrable par bouton ou glissement. Option pour afficher uniquement les dossiers à l’accueil. Thème jaune explicite et couleurs cohérentes dans toute l’application.

@@ -213,8 +213,8 @@ fun NoteTypeFAB(
                 onClick = { expanded = !expanded },
                 shape = androidx.compose.foundation.shape.CircleShape,
                 modifier = Modifier.size(64.dp),
-                containerColor = dev.dettmer.simplenotes.ui.theme.SunnyColors.Yellow,
-                contentColor = dev.dettmer.simplenotes.ui.theme.SunnyColors.Ink,
+                containerColor = dev.dettmer.simplenotes.ui.theme.LocalHomeAccent.current.color,
+                contentColor = dev.dettmer.simplenotes.ui.theme.LocalHomeAccent.current.onColor,
                 // 🆕 v1.10.0-P2: Stronger shadow so FAB floats clearly above note cards
                 elevation = FloatingActionButtonDefaults.elevation(
                     defaultElevation = 8.dp,

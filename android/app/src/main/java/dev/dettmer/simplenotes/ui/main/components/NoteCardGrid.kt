@@ -41,7 +41,7 @@ import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteType
 import dev.dettmer.simplenotes.ui.theme.NoteColorPalette
 import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
-import dev.dettmer.simplenotes.ui.theme.SunnyColors
+import dev.dettmer.simplenotes.ui.theme.LocalHomeAccent
 import dev.dettmer.simplenotes.utils.toReadableTime
 
 private const val NOTE_COLOR_STRENGTH = 0.4f
@@ -90,8 +90,8 @@ private fun homeCardColor(note: Note): Color {
     return chosen.takeOrElse {
         when {
             dark -> MaterialTheme.colorScheme.surfaceContainerHigh
-            note.isPinned == true -> SunnyColors.Butter
-            HomeAttachments.firstAudio(note.content) != null -> SunnyColors.Peach
+            note.isPinned == true -> MaterialTheme.colorScheme.primaryContainer
+            HomeAttachments.firstAudio(note.content) != null -> MaterialTheme.colorScheme.secondaryContainer
             else -> Color.White
         }
     }.let { if (!dark && chosen != Color.Unspecified) lerp(Color.White, it, NOTE_COLOR_STRENGTH) else it }
@@ -149,10 +149,11 @@ private fun HomeChecklist(note: Note, display: CardDisplay) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val shape = RoundedCornerShape(5.dp)
                 Box(Modifier.size(22.dp).background(
-                    if (item.isChecked) SunnyColors.Yellow else Color.Transparent, shape
-                ).border(1.dp, if (item.isChecked) SunnyColors.Yellow else MaterialTheme.colorScheme.outline, shape),
+                    if (item.isChecked) LocalHomeAccent.current.color else Color.Transparent, shape
+                ).border(1.dp, if (item.isChecked) LocalHomeAccent.current.color else MaterialTheme.colorScheme.outline, shape),
                     contentAlignment = Alignment.Center) {
-                    if (item.isChecked) Icon(Icons.Default.Check, null, modifier = Modifier.size(17.dp), tint = SunnyColors.Ink)
+                    if (item.isChecked) Icon(Icons.Default.Check, null, modifier = Modifier.size(17.dp),
+                        tint = LocalHomeAccent.current.onColor)
                 }
                 Text(item.text, style = MaterialTheme.typography.bodyMedium, maxLines = display.itemLines,
                     overflow = TextOverflow.Ellipsis)
@@ -171,7 +172,8 @@ private fun HomeCardFooter(note: Note, display: CardDisplay, sync: Boolean) {
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
         if (display.folder && note.folderName != null) Text(note.folderName,
             style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 96.dp).background(SunnyColors.Sage.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
+            modifier = Modifier.widthIn(max = 96.dp).background(
+                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
                 .padding(horizontal = 8.dp, vertical = 5.dp))
         if (sync && note.syncStatus != dev.dettmer.simplenotes.models.SyncStatus.SYNCED) {
             Icon(syncStatusIcon(note.syncStatus), syncStatusDescription(note.syncStatus),

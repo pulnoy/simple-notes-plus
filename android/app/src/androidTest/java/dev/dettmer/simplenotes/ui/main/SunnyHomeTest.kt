@@ -3,7 +3,13 @@ package dev.dettmer.simplenotes.ui.main
 import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
-import androidx.compose.material3.MaterialTheme
+import dev.dettmer.simplenotes.ui.theme.SimpleNotesTheme
+import dev.dettmer.simplenotes.ui.theme.ThemePreferences
+import dev.dettmer.simplenotes.ui.theme.ColorTheme
+import dev.dettmer.simplenotes.ui.theme.ThemeMode
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
@@ -62,14 +68,18 @@ class SunnyHomeTest {
             store.saveNote(Note(id = "sunny-demo-audio", title = "Mémo vocal", content = "[audio](.assets/sunny-demo.wav)",
                 deviceId = "ui-test"))
         }
+        ThemePreferences.setFolderDrawer(app.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE), true)
         model = MainViewModel(app)
-        compose.setContent { MaterialTheme { MainScreen(model, {}, {}, { _, _ -> }) } }
+        compose.setContent { SimpleNotesTheme(themeMode = ThemeMode.LIGHT, colorTheme = ColorTheme.YELLOW) { MainScreen(model, {}, {}, { _, _ -> }) } }
         compose.waitUntil(15_000) { model.isReady.value && model.sortedNotesUnfoldered.value.size >= 4 }
     }
 
     @Test fun homeShowsMediaAndFoldersAndSupportsFolderLifecycle() {
+        openFolders()
         compose.onNodeWithText(app.getString(R.string.home_all_notes)).assertIsDisplayed()
         compose.onNodeWithTag("home_folder_Personnel").assertIsDisplayed()
+        screenshot("folder-drawer.png")
+        compose.onNodeWithText(app.getString(R.string.home_all_notes)).performClick()
         compose.onNodeWithContentDescription(app.getString(R.string.home_photo_preview)).assertIsDisplayed()
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("0:04").fetchSemanticsNodes().isNotEmpty()
@@ -82,10 +92,13 @@ class SunnyHomeTest {
             compose.onAllNodesWithContentDescription(app.getString(R.string.home_pause_audio)).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithContentDescription(app.getString(R.string.home_pause_audio)).performClick()
+        openFolders()
         compose.onNodeWithTag("home_folder_Personnel").performClick()
         compose.onNodeWithText("Courses").assertDoesNotExist()
+        openFolders()
         compose.onNodeWithText(app.getString(R.string.home_all_notes)).performClick()
-        compose.onNodeWithContentDescription(app.getString(R.string.fab_create_folder)).performClick()
+        openFolders()
+        compose.onNodeWithText(app.getString(R.string.fab_create_folder)).performClick()
         compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("Essai dossier")
         compose.onNodeWithText(app.getString(R.string.folder_create_action)).performClick()
         compose.waitUntil(10_000) { model.folders.value.any { it.name == "Essai dossier" } }
@@ -96,6 +109,7 @@ class SunnyHomeTest {
         }
         model.loadNotes(forceReload = true)
         compose.waitUntil(10_000) { model.notes.value.any { it.id == "sunny-demo-folder-lifecycle" } }
+        openFolders()
         compose.onNodeWithContentDescription(app.getString(R.string.home_folder_menu, "Essai dossier")).performClick()
         compose.onNodeWithText(app.getString(R.string.home_rename)).performClick()
         compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("Essai renommé")
@@ -104,6 +118,7 @@ class SunnyHomeTest {
         compose.waitUntil(10_000) { model.notes.value.any {
             it.id == "sunny-demo-folder-lifecycle" && it.folderName == "Essai renommé"
         } }
+        openFolders()
         compose.onNodeWithContentDescription(app.getString(R.string.home_folder_menu, "Essai renommé")).performClick()
         compose.onNodeWithText(app.getString(R.string.home_delete_folder)).performClick()
         compose.onNode(hasText(app.getString(R.string.home_delete_folder)) and hasClickAction()).performClick()
@@ -136,6 +151,47 @@ class SunnyHomeTest {
         }
     }
 
+    @Test fun folderOnlyHomeCanOpenFoldersAndAllNotes() {
+        val prefs = app.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        ThemePreferences.setFolderDrawer(prefs, false)
+        model.refreshDisplayMode()
+        compose.onNodeWithTag("home_folder_Personnel").assertIsDisplayed()
+        compose.onNodeWithText("Courses").assertDoesNotExist()
+        compose.onNodeWithContentDescription(app.getString(R.string.home_photo_preview)).assertDoesNotExist()
+        screenshot("folder-home.png")
+        compose.onNodeWithTag("home_folder_Personnel").performClick()
+        compose.onNodeWithText("Souvenirs").assertIsDisplayed()
+        compose.onNodeWithText("Courses").assertDoesNotExist()
+        openFolders()
+        compose.onNodeWithTag("home_folder_Personnel").assertIsDisplayed()
+        compose.onNodeWithTag("home_folder_${app.getString(R.string.home_all_notes)}").performClick()
+        compose.onNodeWithText("Courses").assertIsDisplayed()
+        assertTrue(!ThemePreferences.getFolderDrawer(prefs))
+        ThemePreferences.setFolderDrawer(prefs, true)
+        model.refreshDisplayMode()
+        compose.onNodeWithText("Courses").assertIsDisplayed()
+    }
+
+    @Test fun drawerOpensBySwipe() {
+        compose.onRoot().performTouchInput {
+            swipe(Offset(1f, height / 2f), Offset(width * 0.8f, height / 2f), 600)
+        }
+        compose.onNodeWithTag("folder_drawer").assertIsDisplayed()
+        compose.onNodeWithTag("home_folder_Personnel").performClick()
+        compose.onNodeWithText("Souvenirs").assertIsDisplayed()
+        compose.onNodeWithText("Courses").assertDoesNotExist()
+    }
+
+    private fun openFolders() {
+        compose.onNodeWithContentDescription(app.getString(R.string.home_open_folders)).performClick()
+        compose.waitForIdle()
+    }
+
+    private fun screenshot(name: String) {
+        compose.onRoot().captureToImage().asAndroidBitmap().let { image ->
+            File(app.cacheDir, name).outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
     /** Valid local media fixtures; never ships sample notes or media in the release APK. */
     private fun prepareMediaFixtures() {
         val directory = File(app.filesDir, "assets").apply { mkdirs() }

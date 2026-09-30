@@ -170,7 +170,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Refresh display mode from SharedPreferences
      * Called when returning from Settings screen
      */
+    private val _folderDrawer = MutableStateFlow(ThemePreferences.getFolderDrawer(prefs))
+    val folderDrawer: StateFlow<Boolean> = _folderDrawer.asStateFlow()
+
     fun refreshDisplayMode() {
+        _folderDrawer.value = ThemePreferences.getFolderDrawer(prefs)
         val newValue =
             prefs.getString(Constants.KEY_DISPLAY_MODE, Constants.DEFAULT_DISPLAY_MODE)
                 ?: Constants.DEFAULT_DISPLAY_MODE

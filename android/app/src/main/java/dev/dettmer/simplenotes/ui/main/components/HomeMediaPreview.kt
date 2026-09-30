@@ -44,7 +44,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.AsyncImage
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.storage.AssetStore
-import dev.dettmer.simplenotes.ui.theme.SunnyColors
+import dev.dettmer.simplenotes.ui.theme.LocalHomeAccent
 import dev.dettmer.simplenotes.sync.SyncEventBus
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -100,8 +100,8 @@ fun HomeAudioPreview(name: String) {
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Surface(onClick = { HomeAudioPlayer.toggle(name, file) }, enabled = duration != null,
-            shape = CircleShape, color = SunnyColors.Yellow,
-            contentColor = SunnyColors.Ink) {
+            shape = CircleShape, color = LocalHomeAccent.current.color,
+            contentColor = LocalHomeAccent.current.onColor) {
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 Icon(if (current == name) Icons.Default.Pause else Icons.Default.PlayArrow,
                     stringResource(if (current == name) R.string.home_pause_audio else R.string.home_play_audio))
@@ -119,7 +119,7 @@ fun HomeAudioPreview(name: String) {
 /** Decorative audio indicator, not a claim about the recording's actual amplitudes. */
 @Composable
 private fun AudioVisualIndicator(modifier: Modifier) {
-    val color = SunnyColors.Yellow
+    val color = LocalHomeAccent.current.color
     Canvas(modifier.height(32.dp)) {
         val heights = listOf(0.2f, 0.45f, 0.7f, 0.4f, 0.9f, 0.6f, 1f, 0.45f, 0.75f, 0.3f, 0.6f, 0.25f)
         val step = size.width / heights.size
