@@ -67,7 +67,7 @@ private fun scaleTypography(multiplier: Float): Typography {
 @Composable
 fun SimpleNotesTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    colorTheme: ColorTheme = ColorTheme.DYNAMIC,
+    colorTheme: ColorTheme = ColorTheme.YELLOW,
     fontSizeScale: FontSizeScale = FontSizeScale.SYSTEM,
     content: @Composable () -> Unit
 ) {
@@ -148,11 +148,18 @@ fun SimpleNotesTheme(
                 isAmoled = mode == ThemeMode.AMOLED,
                 context = context
             )
-            MaterialTheme(
-                colorScheme = colorScheme,
-                typography = typography,
-                content = content
-            )
+            val accent = if (palette == ColorTheme.YELLOW) {
+                HomeAccent(SunnyColors.Yellow, SunnyColors.Ink, true)
+            } else {
+                HomeAccent(colorScheme.primary, colorScheme.onPrimary, false)
+            }
+            CompositionLocalProvider(LocalHomeAccent provides accent) {
+                MaterialTheme(
+                    colorScheme = colorScheme,
+                    typography = typography,
+                    content = content
+                )
+            }
         }
     }
 }

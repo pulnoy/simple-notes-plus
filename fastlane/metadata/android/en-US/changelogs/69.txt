@@ -1,0 +1,1 @@
+Complete French settings translations. Restore note type icons and list preview length. Include folder navigation preference in backups.

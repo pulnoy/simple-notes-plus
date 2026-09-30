@@ -124,7 +124,7 @@ fun NotesList(
                         }
                         if (SECTION_PINNED !in collapsedSections) {
                             items(items = pinnedNotes, key = { it.id }, contentType = { "PinnedNoteCard" }) { note ->
-                                NoteCard(
+                                NoteCardGrid(
                                     note = note,
                                     showSyncStatus = showSyncStatus,
                                     isSelected = note.id in selectedNotes,
@@ -132,7 +132,7 @@ fun NotesList(
                                     timestampTicker = timestampTicker,
                                     previewLength = previewLength,
                                     showTimestamp = showTimestamp,
-                                    showTypeIcon = showTypeIcon,
+                                    showTypeIcon = showTypeIcon, listMode = true,
                                     showFolderLabel = showFolderLabels,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                                     onClick = {
@@ -163,7 +163,7 @@ fun NotesList(
                                 FolderCardList(
                                     name = folder.name,
                                     count = folderNoteCounts[folder.name] ?: 0,
-                                    color = folder.color,
+                                    appearance = folder,
                                     isSelected = folder.name in selectedFolders,
                                     isSelectionMode = isSelectionMode, // 🆕 v2.7.0 (Folders)
                                     isLocalOnly = folder.name in localOnlyFolderNames, // 🆕 v2.8.0 (Local-Only Folders)
@@ -198,7 +198,7 @@ fun NotesList(
                     }
                     if (SECTION_NOTES !in collapsedSections) {
                         items(items = unpinnedNotes, key = { it.id }, contentType = { "NoteCard" }) { note ->
-                            NoteCard(
+                            NoteCardGrid(
                                 note = note,
                                 showSyncStatus = showSyncStatus,
                                 isSelected = note.id in selectedNotes,
@@ -206,7 +206,7 @@ fun NotesList(
                                 timestampTicker = timestampTicker,
                                 previewLength = previewLength,
                                 showTimestamp = showTimestamp,
-                                showTypeIcon = showTypeIcon,
+                                showTypeIcon = showTypeIcon, listMode = true,
                                 showFolderLabel = showFolderLabels,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = { if (isSelectionMode) onNoteSelectionToggle(note) else onNoteClick(note) },
@@ -248,10 +248,11 @@ internal fun SectionHeaderText(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth()
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth().padding(end = 48.dp)
         )
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
             Box(

@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.Folder
+import dev.dettmer.simplenotes.models.subtreeNames
 import dev.dettmer.simplenotes.models.Note
 import dev.dettmer.simplenotes.models.NoteFilter
 import dev.dettmer.simplenotes.models.NoteType
@@ -170,7 +171,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Refresh display mode from SharedPreferences
      * Called when returning from Settings screen
      */
+    private val _folderDrawer = MutableStateFlow(ThemePreferences.getFolderDrawer(prefs))
+    val folderDrawer: StateFlow<Boolean> = _folderDrawer.asStateFlow()
+
     fun refreshDisplayMode() {
+        _folderDrawer.value = ThemePreferences.getFolderDrawer(prefs)
         val newValue =
             prefs.getString(Constants.KEY_DISPLAY_MODE, Constants.DEFAULT_DISPLAY_MODE)
                 ?: Constants.DEFAULT_DISPLAY_MODE
@@ -675,7 +680,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 🆕 v2.7.0 (Folders): Notizen der aktuell sichtbaren Ordner-Ansicht (sortiert/gefiltert). */
     private fun notesInCurrentFolder(): List<Note> =
-        if (_showArchived.value || _searchActive.value) {
+        if (_showArchived.value || _currentFolder.value == null) {
             // 🆕 v2.11.0 (Archive) / 🆕 v2.16.0 (#141, Suche): flache Liste über alle Ordner
             sortedNotesUnfoldered.value
         } else {
@@ -686,11 +691,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectAll() {
         _selectedNotes.value = notesInCurrentFolder().map { it.id }.toSet()
         // 🆕 v2.16.0 (#141): während einer Suche zeigt die Pane keine Ordner-Kacheln → keine mitauswählen
-        _selectedFolders.value = if (_currentFolder.value == null && !_showArchived.value && !_searchActive.value) {
-            _folders.value.map { it.name }.toSet()
-        } else {
-            emptySet()
-        }
+        _selectedFolders.value = emptySet()
     }
 
     /** 🆕 v2.7.0 (Folders): Ordner-Auswahl toggeln. */
@@ -1542,21 +1543,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 🆕 v2.8.0 (Local-Only Folders): [localOnly] markiert den Ordner VOR dem Anlegen als
      *  „nur lokal", damit kein zwischenzeitlicher Sync-Lauf ihn auf den Server hochlädt. */
-    fun createFolder(name: String, localOnly: Boolean = false) {
+    fun createFolder(name: String, localOnly: Boolean = false, parentName: String? = null) {
         val trimmed = name.trim()
         // Bestehende Ordner nie still ausschließen — die Markierung gilt nur für echte Neuanlage.
         val isNew = _folders.value.none { it.name.equals(trimmed, ignoreCase = true) }
-        val markLocalOnly = localOnly && isNew
+        if (!isNew || trimmed.isEmpty()) return
+        val markLocalOnly = (localOnly || folderStore.isLocalOnly(parentName)) && isNew
         viewModelScope.launch {
             withContext(ioDispatcher) {
                 if (markLocalOnly) {
                     folderStore.setLocalOnly(trimmed, true)
                     _localOnlyFolderNames.value = folderStore.getLocalOnlyFolderNames()
                 }
-                folderStore.addFolder(trimmed, dirty = !markLocalOnly)
+                folderStore.addFolder(trimmed, dirty = !markLocalOnly, parentName = parentName)
             }
             _folders.value = folderStore.loadFolders()
             if (!markLocalOnly) triggerOnSaveSync()
+        }
+    }
+
+    /** Seed only once on an empty installation; a deleted starter folder stays deleted. */
+    fun ensureStarterFolder() {
+        if (prefs.getBoolean("sunny_home_folder_seeded", false)) return
+        viewModelScope.launch {
+            withContext(ioDispatcher) {
+                if (folderStore.loadFolders().isEmpty()) {
+                    folderStore.addFolder(getString(R.string.home_personal), dirty = true)
+                }
+            }
+            _folders.value = folderStore.loadFolders()
+            prefs.edit { putBoolean("sunny_home_folder_seeded", true) }
+            triggerOnSaveSync()
         }
     }
 
@@ -1569,7 +1586,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * und der folders.json-Eintrag als Tombstone propagiert (Server-Removal-Queue).
      * [removeFromServer] = false: Server-Stand bleibt unangetastet („Auf Server behalten").
      */
-    fun excludeFoldersFromSync(folderNames: Set<String>, removeFromServer: Boolean) {
+    fun excludeFoldersFromSync(selectedNames: Set<String>, removeFromServer: Boolean) {
+        val folderNames = _folders.value.subtreeNames(selectedNames)
         if (folderNames.isEmpty()) return
         val updated = _localOnlyFolderNames.value + folderNames
         folderStore.setLocalOnlyFolderNames(updated)
@@ -1620,7 +1638,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * LOCAL_ONLY-Notizen → PENDING (Upload beim nächsten Sync). touch() bumpt updatedAt des
      * Ordner-Eintrags, damit ein evtl. Server-Tombstone den Ordner nicht sofort wieder löscht.
      */
-    fun includeFoldersInSync(folderNames: Set<String>) {
+    fun includeFoldersInSync(selectedNames: Set<String>) {
+        val folderNames = _folders.value.subtreeNames(selectedNames)
         if (folderNames.isEmpty()) return
         val updated = _localOnlyFolderNames.value - folderNames
         folderStore.setLocalOnlyFolderNames(updated)
@@ -1719,7 +1738,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     fun deleteSelection(keepContainedNotes: Boolean) {
         val noteIds = _selectedNotes.value.toSet()
-        val folderNames = _selectedFolders.value.toSet()
+        val folderNames = _folders.value.subtreeNames(_selectedFolders.value.toSet())
+        val folderSnapshot = _folders.value.filter { it.name in folderNames }
         // 🆕 v2.8.0 (Local-Only Folders): Markierung für Undo sichern (deleteFolder räumt sie auf).
         val localOnlyDeleted = folderNames.filter { name ->
             _localOnlyFolderNames.value.any { it.equals(name, ignoreCase = true) }
@@ -1781,7 +1801,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 SnackbarData(
                     message = message,
                     actionLabel = getString(R.string.snackbar_undo),
-                    onAction = { undoDeleteSelection(notesToTrash, folderNames, notesToRoot, localOnlyDeleted) }
+                    onAction = { undoDeleteSelection(notesToTrash, folderSnapshot, notesToRoot, localOnlyDeleted) }
                 )
             )
             WidgetUpdateHelper.refreshAllWidgets(getApplication())
@@ -1822,7 +1842,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun undoDeleteSelection(
         deletedNotes: List<Note>,
-        restoredFolders: Set<String>,
+        restoredFolders: List<Folder>,
         notesToRoot: List<Note>,
         localOnlyFolders: Set<String> = emptySet() // 🆕 v2.8.0 (Local-Only Folders)
     ) {
@@ -1838,12 +1858,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         newStatus = if (intoLocalOnly) SyncStatus.LOCAL_ONLY else SyncStatus.PENDING
                     )
                 }
-                restoredFolders.forEach { name ->
+                restoredFolders.forEach { folder ->
+                    val name = folder.name
                     // Markierung VOR addFolder wiederherstellen, damit kein Sync-Lauf den Ordner hochlädt.
                     val wasLocalOnly = name in localOnlyFolders
                     if (wasLocalOnly) folderStore.setLocalOnly(name, true)
-                    folderStore.addFolder(name, dirty = !wasLocalOnly)
                 }
+                folderStore.restoreFolders(restoredFolders)
             }
             _localOnlyFolderNames.value = folderStore.getLocalOnlyFolderNames()
             _folders.value = folderStore.loadFolders()
@@ -1855,6 +1876,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentFolder.value = name
         loadSortFor(name)
         loadCollapsedFor(name)
+    }
+
+    fun goToParentFolder() {
+        val parent = _folders.value.firstOrNull { it.name == _currentFolder.value }?.parentName
+        if (parent != null && _folders.value.any { it.name == parent }) enterFolder(parent) else goToRoot()
+    }
+
+    fun setFolderAppearance(name: String, icon: String?, color: String?) {
+        viewModelScope.launch {
+            withContext(ioDispatcher) { folderStore.setAppearance(name, icon, color) }
+            _folders.value = folderStore.loadFolders()
+            triggerOnSaveSync()
+        }
+    }
+
+    fun moveFolder(name: String, offset: Int) {
+        viewModelScope.launch {
+            withContext(ioDispatcher) { folderStore.moveFolder(name, offset) }
+            _folders.value = folderStore.loadFolders()
+            triggerOnSaveSync()
+        }
     }
 
     fun goToRoot() {

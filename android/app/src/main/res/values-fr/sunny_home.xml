@@ -1,0 +1,18 @@
+<resources>
+    <string name="home_all_notes">Toutes</string>
+    <string name="home_personal">Personnel</string>
+    <string name="home_search">Rechercher une note</string>
+    <string name="home_clear_search">Effacer la recherche</string>
+    <string name="home_folder_menu">Gérer le dossier %1$s</string>
+    <string name="home_rename">Renommer</string>
+    <string name="home_delete_folder">Supprimer le dossier</string>
+    <string name="home_delete_keep_notes">Supprimer « %1$s » et ses sous-dossiers ? Toutes leurs notes seront conservées dans Toutes. Vous pourrez annuler cette action.</string>
+    <string name="home_voice_memo">Mémo vocal</string>
+    <string name="home_note_actions">Sélectionner la note et afficher les actions</string>
+    <string name="home_photo_pending">Photo indisponible ou en attente de synchronisation</string>
+    <string name="home_photo_preview">Aperçu de la photo de la note</string>
+    <string name="home_play_audio">Lire le mémo vocal</string>
+    <string name="home_pause_audio">Mettre le mémo vocal en pause</string>
+    <string name="home_audio_pending">Audio en attente de synchronisation</string>
+    <string name="home_audio_unavailable">Lecture audio indisponible</string>
+</resources>

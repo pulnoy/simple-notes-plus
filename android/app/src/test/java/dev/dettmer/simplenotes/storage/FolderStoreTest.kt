@@ -16,6 +16,59 @@ import org.junit.Before
 import org.junit.Test
 
 class FolderStoreTest {
+    @Test fun `recreating a deleted child uses the newly selected parent`() = runBlocking {
+        store.addFolder("Old parent")
+        store.addFolder("New parent")
+        store.addFolder("Child", parentName = "Old parent")
+        store.deleteFolder("Child")
+        store.addFolder("Child", parentName = "New parent")
+        assertEquals("New parent", store.loadFolders().first { it.name == "Child" }.parentName)
+    }
+    @Test fun `hierarchy style and order survive reload rename and undo`() = runBlocking {
+        store.addFolder("Work")
+        store.addFolder("Personal")
+        store.addFolder("Projects", parentName = "Work")
+        store.addFolder("Archive", parentName = "Work")
+        store.addFolder("Ideas", parentName = "Projects")
+        store.setAppearance("Work", "work", "#FFF475")
+        store.setAppearance("Projects", "star", "#AECBFA")
+        store.moveFolder("Work", -1)
+        store.moveFolder("Projects", -1)
+        var folders = store.loadFolders()
+        assertEquals(listOf("Work", "Personal"), folders.filter { it.parentName == null }.map { it.name })
+        assertEquals(listOf("Projects", "Archive"), folders.filter { it.parentName == "Work" }.map { it.name })
+        store.rename("Work", "Office")
+        folders = store.loadFolders()
+        assertEquals("work", folders.first { it.name == "Office" }.icon)
+        assertEquals("#FFF475", folders.first { it.name == "Office" }.color)
+        assertEquals("Office", folders.first { it.name == "Projects" }.parentName)
+        assertEquals("Projects", folders.first { it.name == "Ideas" }.parentName)
+        val snapshot = folders.filter { it.name != "Personal" }
+        snapshot.forEach { store.deleteFolder(it.name) }
+        store.restoreFolders(snapshot)
+        assertEquals(snapshot.toSet(), store.loadFolders().filter { it.name != "Personal" }.toSet())
+        assertTrue(store.loadMeta().first { it.name == "Work" }.deleted)
+    }
+
+    @Test fun `old metadata does not invent order or parent and discovery preserves customization`() = runBlocking {
+        File(tmpDir, FolderStore.FILE_NAME).writeText("""[{"name":"Legacy","updatedAt":1}]""")
+        val legacy = store.loadFolders().single()
+        assertNull(legacy.parentName)
+        assertNull(legacy.icon)
+        assertNull(legacy.order)
+        store.setAppearance("Legacy", "home", "#FBBC04")
+        store.addFolders(listOf("Legacy", "Discovered"))
+        assertEquals("home", store.loadFolders().first { it.name == "Legacy" }.icon)
+    }
+
+    @Test fun `reordering never crosses a parent and bounds are no ops`() = runBlocking {
+        store.addFolder("Root")
+        store.addFolder("Child", parentName = "Root")
+        val before = store.loadMeta()
+        store.moveFolder("Child", -1)
+        store.moveFolder("Root", 1)
+        assertEquals(before, store.loadMeta())
+    }
     private lateinit var tmpDir: File
     private lateinit var store: FolderStore
     private lateinit var prefs: SharedPreferences

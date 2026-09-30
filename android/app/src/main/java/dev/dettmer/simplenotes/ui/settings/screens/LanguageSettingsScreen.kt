@@ -56,62 +56,62 @@ fun LanguageSettingsScreen(onBack: () -> Unit) {
         RadioOption(
             value = "en",
             title = stringResource(R.string.language_english),
-            subtitle = "English"
+            subtitle = null
         ),
         RadioOption(
             value = "de",
             title = stringResource(R.string.language_german),
-            subtitle = "German"
+            subtitle = null
         ),
         RadioOption(
             value = "es",
             title = stringResource(R.string.language_spanish),
-            subtitle = "Spanish"
+            subtitle = null
         ),
         RadioOption(
             value = "fr",
             title = stringResource(R.string.language_french),
-            subtitle = "French"
+            subtitle = null
         ),
         RadioOption(
             value = "in",
             title = stringResource(R.string.language_indonesian),
-            subtitle = "Indonesian"
+            subtitle = null
         ),
         RadioOption(
             value = "it",
             title = stringResource(R.string.language_italian),
-            subtitle = "Italian"
+            subtitle = null
         ),
         RadioOption(
             value = "nb",
             title = stringResource(R.string.language_norwegian),
-            subtitle = "Norwegian Bokmål"
+            subtitle = null
         ),
         RadioOption(
             value = "pl",
             title = stringResource(R.string.language_polish),
-            subtitle = "Polish"
+            subtitle = null
         ),
         RadioOption(
             value = "ru",
             title = stringResource(R.string.language_russian),
-            subtitle = "Russian"
+            subtitle = null
         ),
         RadioOption(
             value = "tr",
             title = stringResource(R.string.language_turkish),
-            subtitle = "Turkish"
+            subtitle = null
         ),
         RadioOption(
             value = "uk",
             title = stringResource(R.string.language_ukrainian),
-            subtitle = "Ukrainian"
+            subtitle = null
         ),
         RadioOption(
             value = "zh",
             title = stringResource(R.string.language_chinese_simplified),
-            subtitle = "Chinese (Simplified)"
+            subtitle = null
         )
     )
 

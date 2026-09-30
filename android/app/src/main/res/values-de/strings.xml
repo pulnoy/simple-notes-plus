@@ -1144,4 +1144,9 @@
     <string name="notes_list_widget_preview_content_2">Roadmap und nächste Meilensteine besprechen</string>
     <string name="notes_list_widget_preview_title_3">Ideen</string>
     <string name="notes_list_widget_preview_content_3">Neue Feature-Ideen für den nächsten Sprint</string>
+    <string name="theme_color_yellow">Gelb</string>
+    <string name="home_open_folders">Ordner öffnen</string>
+    <string name="home_folders_title">Ordner</string>
+    <string name="home_drawer_setting">Ordner-Seitenmenü</string>
+    <string name="home_drawer_setting_hint">An: Taste oder Wischen vom linken Rand. Aus: Startseite nur mit Ordnern.</string>
 </resources>

@@ -1,468 +1,196 @@
 package dev.dettmer.simplenotes.ui.main.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.Hyphens
-import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.markdown.noteCardMarkdownPreview
 import dev.dettmer.simplenotes.models.Note
-import dev.dettmer.simplenotes.models.NoteSize
 import dev.dettmer.simplenotes.models.NoteType
-import dev.dettmer.simplenotes.models.getSize
 import dev.dettmer.simplenotes.ui.theme.NoteColorPalette
 import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
+import dev.dettmer.simplenotes.ui.theme.LocalHomeAccent
 import dev.dettmer.simplenotes.utils.toReadableTime
 
-/** Titel darf bis zu diesem Anteil seiner Basisgröße schrumpfen, bevor Ellipsis greift. */
-private const val TITLE_AUTOSIZE_MIN_FRACTION = 0.8f
+private const val NOTE_COLOR_STRENGTH = 0.4f
 
-/** Größe des Sync-Icons, wenn es (ohne Zeitstempel) inline ans Ende des Vorschautexts rutscht. */
-private val CORNER_SYNC_ICON_SIZE = 14.dp
+private data class CardDisplay(val lines: Int, val itemLines: Int, val timestamp: Boolean, val folder: Boolean)
 
-/**
- * 🎨 v1.7.0: Unified Note Card for Grid Layout
- *
- * Einheitliche Card für ALLE Notizen im Grid:
- * - Dynamische maxLines basierend auf NoteSize
- * - LARGE notes: 6 Zeilen Preview
- * - SMALL notes: 3 Zeilen Preview
- * - Kein externes Padding - Grid steuert Abstände
- * - Optimiert für Pinterest-style dynamisches Layout
- */
-// Abbau: TECH_DEBT_ROADMAP.md §4 (Bestand, keinem Refactoring-Slice zugeordnet)
-@Suppress(
-    "LongParameterList",
-    "CyclomaticComplexMethod",
-    "LongMethod"
-) // 🆕 Issue #100: zwei weitere Display-Toggles neben bestehendem State
+@Suppress("LongParameterList")
 @Composable
 fun NoteCardGrid(
     note: Note,
     showSyncStatus: Boolean,
+    modifier: Modifier = Modifier,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
     timestampTicker: Long = 0L,
     previewLength: NotePreviewLength = NotePreviewLength.STANDARD,
     showTimestamp: Boolean = true,
     showTypeIcon: Boolean = true,
-    showFolderLabel: Boolean = false, // 🆕 v2.16.0 (#141): nur während der ordnerübergreifenden Suche
+    showFolderLabel: Boolean = false,
+    listMode: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val context = LocalContext.current
-    val folderLabel = note.folderName.takeIf { showFolderLabel } // null im Root und außerhalb der Suche
-
-    // 🚀 Performance: Cache noteSize - nur bei note-Änderung neu berechnen
-    val noteSize = remember(note.id, note.content, note.checklistItems) { note.getSize() }
-
-    // ⏱️ Reading timestampTicker triggers recomposition only for visible cards
-    @Suppress("UNUSED_VARIABLE")
-    val ticker = timestampTicker
-
-    // Dynamische maxLines basierend auf Größe
-    val previewMaxLines = if (noteSize == NoteSize.LARGE) previewLength.gridLargeLines else previewLength.gridSmallLines
-
-    // 🆕 Issue #100: Ohne Zeitstempel entfällt die Footer-Row — das Sync-Icon rutscht stattdessen
-    // inline ans Ende des Vorschautexts (siehe NoteCardGridPreviewContent/-IconLeadingPreview).
-    val showCornerSyncIcon = !showTimestamp && showSyncStatus
-
-    // v2.5.0: Resolve note colour, fall back to theme default
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val noteContainerColor = NoteColorPalette.resolveContainer(note.color, isDark)
-        .takeOrElse { MaterialTheme.colorScheme.surfaceContainerHigh }
-    val hasNoteColor = !note.color.isNullOrBlank()
-
+    val display = remember(previewLength, showTimestamp, showFolderLabel, timestampTicker, listMode) {
+        CardDisplay(if (listMode) previewLength.listLines else previewLength.gridLargeLines,
+            previewLength.itemMaxLines, showTimestamp, showFolderLabel)
+    }
+    val shape = RoundedCornerShape(22.dp)
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            // Kein externes Padding - Grid steuert alles
-            .then(
-                if (isSelected) {
-                    Modifier.border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .pointerInput(note.id, isSelectionMode) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected && !hasNoteColor) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            } else {
-                noteContainerColor
-            }
-        )
+        modifier = modifier.fillMaxWidth().then(
+            if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape) else Modifier
+        ).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = shape, colors = CardDefaults.cardColors(containerColor = homeCardColor(note)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp) // Einheitliches internes Padding
-            ) {
-                // Title — 🆕 v2.11.0: bei leerem Titel weglassen (kein "Untitled"-Platzhalter);
-                // die erste Preview-Zeile rückt dann in den Titel-Slot nach, der Rest
-                // erscheint darunter über die volle Kartenbreite (wie beim Titel-Fall)
-                if (note.title.isNotBlank()) {
-                    // Header row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (showTypeIcon) {
-                            NoteCardGridTypeIcon(note = note, isPinned = note.isPinned == true)
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        val titleFontSize = MaterialTheme.typography.titleSmall.fontSize
-                        val titleAutoSize = remember(titleFontSize) {
-                            TextAutoSize.StepBased(
-                                minFontSize = titleFontSize * TITLE_AUTOSIZE_MIN_FRACTION,
-                                maxFontSize = titleFontSize
-                            )
-                        }
-                        Text(
-                            text = note.title,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                hyphens = Hyphens.Auto,
-                                lineBreak = LineBreak.Paragraph
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            autoSize = titleAutoSize,
-                            modifier = Modifier.weight(1f)
-                        )
-                        // 🆕 Discussion #110: ohne Vorschauzeilen hat das Sync-Icon keinen Text
-                        // mehr zum Anhängen — es rückt neben den Titel statt zu verschwinden.
-                        if (showCornerSyncIcon && previewMaxLines == 0) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            NoteCardGridSyncIcon(note = note, modifier = Modifier.size(CORNER_SYNC_ICON_SIZE))
-                        }
-                    }
-
-                    // ponytail: 0 Zeilen = NotePreviewLength.TITLE_ONLY
-                    if (previewMaxLines > 0) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        NoteCardGridPreviewContent(
-                            note = note,
-                            maxLines = previewMaxLines,
-                            itemMaxLines = previewLength.itemMaxLines,
-                            showSyncIcon = showCornerSyncIcon
-                        )
-                    }
-                } else {
-                    NoteCardGridIconLeadingPreview(
-                        note = note,
-                        isPinned = note.isPinned == true,
-                        maxLines = previewMaxLines,
-                        showTypeIcon = showTypeIcon,
-                        showSyncIcon = showCornerSyncIcon
-                    )
-                }
-
-                // 🆕 v2.16.0 (#141): eigene Zeile — die Footer-Row unten gibt es ohne Zeitstempel
-                // gar nicht (Issue #100), das Label muss aber auch dann sichtbar sein.
-                if (folderLabel != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    NoteCardFolderLabel(folderName = folderLabel, iconSize = 12.dp)
-                }
-
-                // 🆕 Issue #100: Ohne Zeitstempel entfällt die Footer-Row komplett — das Sync-Icon
-                // hängt stattdessen inline am Ende der letzten Vorschauzeile (siehe oben).
-                if (showTimestamp) {
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Footer
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = note.updatedAt.toReadableTime(context),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        if (showSyncStatus) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            NoteCardGridSyncIcon(note = note, modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-            }
-
-            // Selection overlay on colored notes — keeps note color visible while
-            // signaling selection via a subtle semi-transparent tint
-            if (isSelected && hasNoteColor) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.08f))
-                )
-            }
-
-            // Selection indicator checkbox (top-right)
-            androidx.compose.animation.AnimatedVisibility(
-                visible = isSelectionMode,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut(),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHighest
-                            }
-                        )
-                        .border(
-                            width = 2.dp,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outline
-                            },
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = stringResource(R.string.selection_count, 1),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                    }
-                }
-            }
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            HomeCardTitle(note, isSelected, isSelectionMode, showTypeIcon, onLongClick)
+            HomeCardBody(note, display)
+            HomeCardFooter(note, display, showSyncStatus)
         }
     }
 }
 
-/** Sync-Status-Icon, gemeinsam genutzt von der Footer-Row und dem TrailingIconText ohne Zeitstempel. */
 @Composable
-private fun NoteCardGridSyncIcon(note: Note, modifier: Modifier = Modifier) {
-    Icon(
-        imageVector = syncStatusIcon(note.syncStatus),
-        contentDescription = null,
-        tint = syncStatusTint(note.syncStatus),
-        modifier = modifier
-    )
+private fun homeCardColor(note: Note): Color {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val chosen = NoteColorPalette.resolveContainer(note.color, dark)
+    return chosen.takeOrElse {
+        when {
+            dark -> MaterialTheme.colorScheme.surfaceContainerHigh
+            note.isPinned == true -> MaterialTheme.colorScheme.primaryContainer
+            HomeAttachments.firstAudio(note.content) != null -> MaterialTheme.colorScheme.secondaryContainer
+            else -> Color.White
+        }
+    }.let { if (!dark && chosen != Color.Unspecified) lerp(Color.White, it, NOTE_COLOR_STRENGTH) else it }
 }
 
-/** Typ-Icon (+ optionaler Pin), gemeinsam genutzt vom Titel- und vom Icon-Leading-Preview-Fall. */
 @Composable
-private fun NoteCardGridTypeIcon(note: Note, isPinned: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(24.dp)
-            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = if (note.noteType == NoteType.TEXT) {
-                Icons.Outlined.Description
-            } else {
-                Icons.AutoMirrored.Outlined.List
-            },
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(12.dp)
-        )
+private fun HomeCardTitle(note: Note, selected: Boolean, selectionMode: Boolean, showPin: Boolean, onMenu: () -> Unit) {
+    val fallback = noteCardMarkdownPreview(HomeAttachments.previewText(note.content))
+        .text.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
+    val title = note.title.ifBlank {
+        when {
+            HomeAttachments.firstAudio(note.content) != null -> stringResource(R.string.home_voice_memo)
+            HomeAttachments.firstImage(note.content) != null && fallback.isBlank() -> stringResource(R.string.fab_image_note)
+            else -> fallback
+        }
     }
-
-    if (isPinned) {
-        Icon(
-            imageVector = Icons.Filled.PushPin,
-            contentDescription = null,
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (showPin) Icon(
+            if (note.noteType == NoteType.CHECKLIST) Icons.Default.Checklist else Icons.Outlined.Description,
+            stringResource(if (note.noteType == NoteType.CHECKLIST) R.string.fab_checklist else R.string.fab_text_note),
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .padding(start = 4.dp)
-                .size(12.dp)
+            modifier = Modifier.size(19.dp).testTag("note_type_${note.id}")
         )
-    }
-}
-
-@Composable
-private fun NoteCardGridPreviewContent(
-    note: Note,
-    maxLines: Int,
-    itemMaxLines: Int,
-    showSyncIcon: Boolean,
-    modifier: Modifier = Modifier
-) {
-    // 🔧 Gemeinsamer, hyphenierter Body-Style für TEXT- und Checklist-Preview — vermeidet, dass
-    // eine der beiden Note-Typen die Hyphens.Auto/LineBreak.Paragraph-Behandlung verpasst.
-    val bodyStyle = MaterialTheme.typography.bodySmall.copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Paragraph)
-    val cornerSyncIcon: (@Composable () -> Unit)? = if (showSyncIcon) {
-        { NoteCardGridSyncIcon(note = note, modifier = Modifier.size(CORNER_SYNC_ICON_SIZE)) }
-    } else {
-        null
-    }
-    if (note.noteType == NoteType.TEXT) {
-        TrailingIconText(
-            text = noteCardMarkdownPreview(note.content),
-            style = bodyStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = maxLines,
-            iconSize = CORNER_SYNC_ICON_SIZE,
-            icon = cornerSyncIcon,
-            modifier = modifier
-        )
-    } else {
-        ChecklistItemsPreview(
-            items = note.checklistItems.orEmpty(),
-            sortOptionName = note.checklistSortOption,
-            maxItems = maxLines - 1,
-            style = bodyStyle,
-            itemMaxLines = itemMaxLines,
-            modifier = modifier,
-            trailingIcon = cornerSyncIcon,
-            trailingIconSize = CORNER_SYNC_ICON_SIZE
-        )
-    }
-}
-
-/**
- * Preview-Text als AnnotatedString, unabhängig vom NoteType — Grundlage, um die erste Zeile
- * in den Titel-Slot zu heben und den Rest separat darunter anzuzeigen. AnnotatedString statt
- * String, damit die Markdown-Formatierung aus noteCardMarkdownPreview beim Splitten erhalten
- * bleibt (subSequence bewahrt Spans, ein reiner String-Split würde sie verlieren).
- */
-@Composable
-private fun notePreviewFullText(note: Note): AnnotatedString {
-    return if (note.noteType == NoteType.TEXT) {
-        noteCardMarkdownPreview(note.content)
-    } else {
-        val items = note.checklistItems.orEmpty()
-        remember(items, note.checklistSortOption) {
-            AnnotatedString(generateChecklistPreview(items, note.checklistSortOption))
+        if (note.isPinned == true && showPin) Icon(Icons.Default.PushPin, stringResource(R.string.section_pinned),
+            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        IconButton(onClick = onMenu, modifier = Modifier.size(28.dp)) {
+            Icon(if (selectionMode && selected) Icons.Default.Check else Icons.Default.MoreVert,
+                stringResource(R.string.home_note_actions), modifier = Modifier.size(20.dp))
         }
     }
 }
 
-/** Trennt an der ersten Zeile, Formatierung bleibt dank subSequence erhalten. */
-private fun AnnotatedString.splitFirstLine(): Pair<AnnotatedString, AnnotatedString> {
-    val newlineIndex = text.indexOf('\n')
-    return if (newlineIndex == -1) {
-        this to AnnotatedString("")
+@Composable
+private fun HomeCardBody(note: Note, display: CardDisplay) {
+    if (display.lines == 0) return
+    val image = remember(note.content) { HomeAttachments.firstImage(note.content) }
+    val audio = remember(note.content) { HomeAttachments.firstAudio(note.content) }
+    if (note.noteType == NoteType.CHECKLIST) {
+        HomeChecklist(note, display)
     } else {
-        subSequence(0, newlineIndex) to subSequence(newlineIndex + 1, length)
+        val text = HomeAttachments.previewText(note.content)
+        val body = if (note.title.isBlank() && image == null && audio == null) text.substringAfter('\n', "") else text
+        val preview = noteCardMarkdownPreview(body)
+        if (preview.isNotBlank()) Text(preview, style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = display.lines,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("note_preview_${note.id}"))
+    }
+    if (image != null) HomePhotoPreview(image)
+    if (audio != null) HomeAudioPreview(audio)
+}
+
+@Composable
+private fun HomeChecklist(note: Note, display: CardDisplay) {
+    val items = remember(note.checklistItems, note.checklistSortOption) {
+        sortChecklistItemsForPreview(note.checklistItems.orEmpty(), note.checklistSortOption)
+    }
+    val visible = items.take(display.lines)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        visible.forEach { item ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val shape = RoundedCornerShape(5.dp)
+                Box(Modifier.size(22.dp).background(
+                    if (item.isChecked) LocalHomeAccent.current.color else Color.Transparent, shape
+                ).border(1.dp, if (item.isChecked) LocalHomeAccent.current.color else MaterialTheme.colorScheme.outline, shape),
+                    contentAlignment = Alignment.Center) {
+                    if (item.isChecked) Icon(Icons.Default.Check, null, modifier = Modifier.size(17.dp),
+                        tint = LocalHomeAccent.current.onColor)
+                }
+                Text(item.text, style = MaterialTheme.typography.bodyMedium, maxLines = display.itemLines,
+                    overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (items.size > visible.size) Text(stringResource(R.string.checklist_items_more, items.size - visible.size),
+            style = MaterialTheme.typography.labelSmall)
     }
 }
 
-/**
- * Bei leerem Titel: erste Preview-Zeile im Titel-Slot neben dem Icon (einzeilig, wie zuvor
- * der Titel), der Rest der Preview folgt unverändert als eigener Block über die volle
- * Kartenbreite — dieselbe Row/Spacer-Mechanik wie im Titel-Fall, keine Sonderlogik nötig.
- */
 @Composable
-private fun NoteCardGridIconLeadingPreview(
-    note: Note,
-    isPinned: Boolean,
-    maxLines: Int,
-    showTypeIcon: Boolean,
-    showSyncIcon: Boolean
-) {
-    val (firstLine, remainingLines) = notePreviewFullText(note).splitFirstLine()
-    // ponytail: maxLines <= 1 = TITLE_ONLY (bzw. kein Platz mehr) — nur die Titel-Slot-Zeile bleibt
-    val hasRemainingLines = remainingLines.isNotBlank() && maxLines > 1
-    val bodyStyle = MaterialTheme.typography.bodySmall.copy(hyphens = Hyphens.Auto, lineBreak = LineBreak.Paragraph)
-    val cornerSyncIcon: (@Composable () -> Unit)? = if (showSyncIcon) {
-        { NoteCardGridSyncIcon(note = note, modifier = Modifier.size(CORNER_SYNC_ICON_SIZE)) }
-    } else {
-        null
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (showTypeIcon) {
-            NoteCardGridTypeIcon(note = note, isPinned = isPinned)
-            Spacer(modifier = Modifier.width(8.dp))
+private fun HomeCardFooter(note: Note, display: CardDisplay, sync: Boolean) {
+    val context = LocalContext.current
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (display.timestamp) Text(note.updatedAt.toReadableTime(context), style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+            modifier = Modifier.weight(1f).testTag("note_timestamp_${note.id}"))
+        if (display.folder && note.folderName != null) Text(note.folderName,
+            style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 96.dp).background(
+                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 8.dp, vertical = 5.dp))
+        if (sync && note.syncStatus != dev.dettmer.simplenotes.models.SyncStatus.SYNCED) {
+            Icon(syncStatusIcon(note.syncStatus), syncStatusDescription(note.syncStatus),
+                tint = syncStatusTint(note.syncStatus), modifier = Modifier.size(14.dp))
         }
-        // Icon hängt an dieser Zeile nur, wenn sie auch die letzte sichtbare ist
-        TrailingIconText(
-            text = firstLine,
-            style = bodyStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            iconSize = CORNER_SYNC_ICON_SIZE,
-            icon = if (hasRemainingLines) null else cornerSyncIcon,
-            modifier = Modifier.weight(1f)
-        )
-    }
-
-    if (hasRemainingLines) {
-        Spacer(modifier = Modifier.height(6.dp))
-        TrailingIconText(
-            text = remainingLines,
-            style = bodyStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = maxLines - 1,
-            iconSize = CORNER_SYNC_ICON_SIZE,
-            icon = cornerSyncIcon
-        )
     }
 }

@@ -21,7 +21,10 @@ data class FolderMeta(
     @SerializedName("name") val name: String,
     @SerializedName("color") val color: String? = null,
     @SerializedName("updatedAt") val updatedAt: Long = 0L,
-    @SerializedName("deleted") val deleted: Boolean = false
+    @SerializedName("deleted") val deleted: Boolean = false,
+    @SerializedName("icon") val icon: String? = null,
+    @SerializedName("parentName") val parentName: String? = null,
+    @SerializedName("order") val order: Int? = null
 )
 
 /**
@@ -65,24 +68,27 @@ class FolderStore(private val context: Context) {
     suspend fun loadFolders(): List<Folder> = mutex.withLock {
         loadMetaUnsafe()
             .filter { !it.deleted }
-            .map { Folder(it.name, it.color) }
-            .sortedBy { it.name.lowercase() }
+            .map { Folder(it.name, it.color, it.icon, it.parentName, it.order) }
+            .sortedWith(compareBy<Folder> { it.order ?: Int.MAX_VALUE }.thenBy { it.name.lowercase() })
     }
 
     /** User-Anlage: Eintrag anlegen/re-aktivieren. Setzt dirty-Flag (außer `dirty = false`,
      *  z. B. bei local-only-Anlage, die keinen Sync-Lauf braucht). */
-    suspend fun addFolder(name: String, dirty: Boolean = true) {
+    suspend fun addFolder(name: String, dirty: Boolean = true, parentName: String? = null) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         mutex.withLock {
             val current = loadMetaUnsafe().toMutableList()
             val idx = current.indexOfFirst { it.name.equals(trimmed, ignoreCase = true) }
+            val parent = parentName?.takeIf { p -> current.any { it.name == p && !it.deleted } }
             if (idx >= 0) {
                 val existing = current[idx]
                 if (!existing.deleted && existing.name == trimmed) return@withLock
-                current[idx] = existing.copy(name = trimmed, deleted = false, updatedAt = now())
+                current[idx] = existing.copy(name = trimmed, deleted = false, updatedAt = now(),
+                    parentName = if (existing.deleted) parent else existing.parentName)
             } else {
-                current.add(FolderMeta(name = trimmed, updatedAt = now()))
+                val lastOrder = current.filter { !it.deleted && it.parentName == parent }.mapNotNull { it.order }.maxOrNull()
+                current.add(FolderMeta(name = trimmed, updatedAt = now(), parentName = parent, order = lastOrder?.plus(1)))
             }
             writeMetaUnsafe(current.sortedBy { it.name.lowercase() })
             if (dirty) markDirty()
@@ -135,7 +141,7 @@ class FolderStore(private val context: Context) {
         mutex.withLock {
             val current = loadMetaUnsafe().toMutableList()
             val oldIdx = current.indexOfFirst { it.name.equals(old, ignoreCase = true) }
-            val oldColor = current.getOrNull(oldIdx)?.color
+            val oldMeta = current.getOrNull(oldIdx) ?: FolderMeta(old)
             if (oldIdx >= 0) {
                 if (localOnly) {
                     current.removeAt(oldIdx)
@@ -145,15 +151,54 @@ class FolderStore(private val context: Context) {
             }
             val newIdx = current.indexOfFirst { it.name.equals(trimmedNew, ignoreCase = true) }
             if (newIdx >= 0) {
-                current[newIdx] = current[newIdx].copy(name = trimmedNew, color = oldColor, deleted = false, updatedAt = now())
+                current[newIdx] = oldMeta.copy(name = trimmedNew, deleted = false, updatedAt = now())
             } else {
-                current.add(FolderMeta(name = trimmedNew, color = oldColor, updatedAt = now()))
+                current.add(oldMeta.copy(name = trimmedNew, deleted = false, updatedAt = now()))
+            }
+            current.indices.filter { current[it].parentName == old && !current[it].deleted }.forEach { index ->
+                current[index] = current[index].copy(parentName = trimmedNew, updatedAt = now())
             }
             writeMetaUnsafe(current.sortedBy { it.name.lowercase() })
             if (!localOnly) markDirty()
         }
         // local-only-Markierung auf den neuen Namen übertragen, alten Namen entfernen.
         migrateLocalOnly(old, trimmedNew)
+    }
+
+    suspend fun setAppearance(name: String, icon: String?, color: String?) = mutex.withLock {
+        val current = loadMetaUnsafe().toMutableList()
+        val index = current.indexOfFirst { it.name == name && !it.deleted }
+        if (index < 0) return@withLock
+        current[index] = current[index].copy(icon = icon, color = color, updatedAt = now())
+        writeMetaUnsafe(current)
+        if (!isLocalOnly(name)) markDirty()
+    }
+
+    /** Reorders siblings only, leaving every folder in its original parent. */
+    suspend fun moveFolder(name: String, offset: Int) = mutex.withLock {
+        val current = loadMetaUnsafe().toMutableList()
+        val target = current.firstOrNull { it.name == name && !it.deleted } ?: return@withLock
+        val siblings = current.filter { !it.deleted && it.parentName == target.parentName }
+            .sortedWith(compareBy<FolderMeta> { it.order ?: Int.MAX_VALUE }.thenBy { it.name.lowercase() }).toMutableList()
+        val source = siblings.indexOfFirst { it.name == name }
+        val destination = source + offset
+        if (destination !in siblings.indices) return@withLock
+        siblings.add(destination, siblings.removeAt(source))
+        val timestamp = now()
+        siblings.forEachIndexed { order, folder ->
+            val index = current.indexOfFirst { it.name == folder.name }
+            current[index] = folder.copy(order = order, updatedAt = timestamp)
+        }
+        writeMetaUnsafe(current)
+        markDirty()
+    }
+
+    /** Undo also restores metadata for local-only folders that were removed without a tombstone. */
+    suspend fun restoreFolders(folders: List<Folder>) = mutex.withLock {
+        val current = loadMetaUnsafe().filterNot { entry -> folders.any { it.name == entry.name } }.toMutableList()
+        current.addAll(folders.map { FolderMeta(it.name, it.color, now(), false, it.icon, it.parentName, it.order) })
+        writeMetaUnsafe(current)
+        if (folders.any { !isLocalOnly(it.name) }) markDirty()
     }
 
     private fun migrateLocalOnly(oldName: String, newName: String) {

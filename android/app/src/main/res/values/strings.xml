@@ -1171,4 +1171,9 @@
     <string name="drive_sync_account_missing">Google account unavailable. Try again.</string>
     <string name="drive_sync_authorization_incomplete">Google Drive authorization incomplete. Try again.</string>
     <string name="drive_sync_connection_error">Could not connect to Google Drive.</string>
+    <string name="theme_color_yellow">Yellow</string>
+    <string name="home_open_folders">Open folders</string>
+    <string name="home_folders_title">Folders</string>
+    <string name="home_drawer_setting">Folder drawer</string>
+    <string name="home_drawer_setting_hint">On: button or swipe from the left edge. Off: home shows folders only.</string>
 </resources>

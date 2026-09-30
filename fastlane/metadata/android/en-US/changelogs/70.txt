@@ -1,0 +1,1 @@
+Custom folder order, icons and backgrounds. Nested folders with parent navigation. Folder hierarchy and appearance preserved in backup and Drive sync.

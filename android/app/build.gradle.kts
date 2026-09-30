@@ -22,8 +22,8 @@ android {
         applicationId = "fr.mswgillian.simplenoteskeep"
         minSdk = 24
         targetSdk = 36
-        versionCode = 65  // Google Drive sync and refreshed yellow icon
-        versionName = "0.1.4"
+        versionCode = 71  // Folder drag and drawer lock
+        versionName = "0.1.10"
 
         // APK-Size: nur tatsächlich gepflegte Locales ausliefern. AndroidX/Material/
         // Compose schleppen sonst ~70+ Sprachvarianten in resources.arsc mit. Geräte
@@ -357,7 +357,8 @@ val changelogVersionsInApp = 15
 val copyFullChangelogToAssets by tasks.registering {
     description = "Copies the last $changelogVersionsInApp CHANGELOG versions to app assets for in-app display"
     doLast {
-        listOf("CHANGELOG.md" to "changelog.md", "CHANGELOG.de.md" to "changelog.de.md")
+        listOf("CHANGELOG.md" to "changelog.md", "CHANGELOG.de.md" to "changelog.de.md",
+            "CHANGELOG.fr.md" to "changelog.fr.md")
             .forEach { (src, dst) ->
                 val parts = file("$rootDir/../$src").readText().split(Regex("(?m)^## "))
                 val trimmed = parts.drop(1).take(changelogVersionsInApp)

@@ -72,7 +72,7 @@ fun NotesStaggeredGrid(
     val pinnedNotes = remember(notes) { notes.filter { it.isPinned == true } }
     val unpinnedNotes = remember(notes) { notes.filter { it.isPinned != true } }
     // 🆕 v2.7.0 (Folders): Reihenfolge Pinned → Folders → Notes
-    val showNotesHeader = remember(notes, folders) { unpinnedNotes.isNotEmpty() && (pinnedNotes.isNotEmpty() || folders.isNotEmpty()) }
+    val showNotesHeader = unpinnedNotes.isNotEmpty()
 
     // 🆕 section reordering: a section only counts for move-up/down adjacency if its header is
     // actually rendered this frame (mirrors each section's existing visibility rule).
@@ -176,7 +176,7 @@ fun NotesStaggeredGrid(
                                 FolderCardGrid(
                                     name = folder.name,
                                     count = folderNoteCounts[folder.name] ?: 0,
-                                    color = folder.color,
+                                    appearance = folder,
                                     isSelected = folder.name in selectedFolders,
                                     isSelectionMode = isSelectionMode, // 🆕 v2.7.0 (Folders)
                                     isLocalOnly = folder.name in localOnlyFolderNames, // 🆕 v2.8.0 (Local-Only Folders)
@@ -258,7 +258,7 @@ private fun PinnedNotesGrid(
     onNoteLongClick: (Note) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columnCount = if (adaptiveScaling) max(1, (maxWidth / 150.dp).toInt()) else manualColumns
+        val columnCount = if (notes.size == 1) 1 else if (adaptiveScaling) max(1, (maxWidth / 150.dp).toInt()) else manualColumns
         val columnedNotes = remember(notes, columnCount) {
             (0 until columnCount).map { col -> notes.filterIndexed { i, _ -> i % columnCount == col } }
         }

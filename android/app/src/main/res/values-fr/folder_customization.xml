@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folder_create_child">Nouveau sous-dossier</string>
+    <string name="folder_parent_label">Dans : %1$s</string>
+    <string name="folder_name_duplicate">Ce nom de dossier est déjà utilisé.</string>
+    <string name="folder_customize">Icône et couleur de fond</string>
+    <string name="folder_move_up">Monter</string>
+    <string name="folder_move_down">Descendre</string>
+    <string name="folder_go_parent">Dossier parent</string>
+    <string name="folder_icon_title">Choisir une icône</string>
+    <string name="folder_background_title">Couleur de fond</string>
+    <string name="folder_save_appearance">Enregistrer</string>
+    <string name="folder_icon_folder">Dossier</string>
+    <string name="folder_icon_person">Personnel</string>
+    <string name="folder_icon_home">Maison</string>
+    <string name="folder_icon_work">Travail</string>
+    <string name="folder_icon_favorite">Favori</string>
+    <string name="folder_icon_school">Études</string>
+    <string name="folder_icon_travel">Voyages</string>
+    <string name="folder_icon_shopping">Courses</string>
+    <string name="folder_icon_photo">Photos</string>
+    <string name="folder_icon_audio">Voix</string>
+    <string name="folder_icon_calendar">Agenda</string>
+    <string name="folder_icon_star">Étoile</string>
+</resources>

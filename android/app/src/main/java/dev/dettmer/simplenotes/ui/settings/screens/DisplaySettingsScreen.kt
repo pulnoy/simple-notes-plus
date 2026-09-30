@@ -66,6 +66,8 @@ import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
 import dev.dettmer.simplenotes.ui.theme.ThemeMode
 import dev.dettmer.simplenotes.utils.Constants
 
+private const val DARK_SURFACE_THRESHOLD = 0.5f
+
 /**
  * 🎨 v1.7.0: Display Settings Screen
  * 🆕 v1.9.0 (F05): Added Custom App Title section
@@ -126,6 +128,7 @@ fun DisplaySettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 /** Karte 1: Theme, Farbschema, Schriftgröße, App-Titel. */
 @Composable
 private fun AppearanceSection(viewModel: SettingsViewModel) {
+    val folderDrawer by viewModel.folderDrawer.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val colorTheme by viewModel.colorTheme.collectAsState()
     val fontSizeScale by viewModel.fontSizeScale.collectAsState()
@@ -144,6 +147,13 @@ private fun AppearanceSection(viewModel: SettingsViewModel) {
         ColorThemeSelector(
             currentTheme = colorTheme,
             onThemeSelected = { viewModel.setColorTheme(it) }
+        )
+
+        SettingsSwitch(
+            title = stringResource(R.string.home_drawer_setting),
+            subtitle = stringResource(R.string.home_drawer_setting_hint),
+            checked = folderDrawer,
+            onCheckedChange = { viewModel.setFolderDrawer(it) }
         )
 
         SettingsSectionHeader(text = stringResource(R.string.font_size_title))
@@ -557,7 +567,12 @@ private fun ColorThemeSelector(currentTheme: ColorTheme, onThemeSelected: (Color
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(theme.previewColor)
+                        .background(if (theme == ColorTheme.DYNAMIC && !dynamicUnavailable) {
+                            dev.dettmer.simplenotes.ui.theme.ColorPalettes.getColorScheme(
+                                theme, MaterialTheme.colorScheme.surface.luminance() < DARK_SURFACE_THRESHOLD, false,
+                                androidx.compose.ui.platform.LocalContext.current
+                            ).primary
+                        } else theme.previewColor)
                 )
             }
         }

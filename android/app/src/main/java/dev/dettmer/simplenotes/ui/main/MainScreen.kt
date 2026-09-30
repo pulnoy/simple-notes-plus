@@ -21,20 +21,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Archive
@@ -57,7 +53,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -81,7 +76,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.zIndex
 import dev.dettmer.simplenotes.R
 import dev.dettmer.simplenotes.models.Folder
@@ -90,13 +84,26 @@ import dev.dettmer.simplenotes.models.NoteFilter
 import dev.dettmer.simplenotes.models.NewNoteAction
 import dev.dettmer.simplenotes.models.SortDirection
 import dev.dettmer.simplenotes.models.SortOption
-import dev.dettmer.simplenotes.models.SyncStatus
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
 import dev.dettmer.simplenotes.sync.SyncStateManager
 import dev.dettmer.simplenotes.ui.main.components.CreateFolderDialog
 import dev.dettmer.simplenotes.ui.main.components.DeleteSelectionDialog
 import dev.dettmer.simplenotes.ui.main.components.EmptyState
 import dev.dettmer.simplenotes.ui.main.components.ExcludeFolderSyncSheet
 import dev.dettmer.simplenotes.ui.main.components.FilterChipRow
+import dev.dettmer.simplenotes.ui.main.components.HomeFolderActions
+import dev.dettmer.simplenotes.ui.main.components.SunnyHomeControls
+import dev.dettmer.simplenotes.ui.main.components.FolderNavigation
+import dev.dettmer.simplenotes.ui.main.components.FolderDestinations
+import dev.dettmer.simplenotes.ui.main.components.FolderAppearanceSheet
+import dev.dettmer.simplenotes.ui.main.components.FolderBreadcrumb
+import dev.dettmer.simplenotes.models.childrenOf
+import dev.dettmer.simplenotes.ui.theme.LocalHomeAccent
 import dev.dettmer.simplenotes.ui.main.components.MoveToFolderSheet
 import dev.dettmer.simplenotes.ui.main.components.NoteColorPickerSheet
 import dev.dettmer.simplenotes.ui.main.components.NoteTypeFAB
@@ -109,8 +116,8 @@ import dev.dettmer.simplenotes.ui.main.components.SyncStatusLegendDialog
 import dev.dettmer.simplenotes.ui.theme.NotePreviewLength
 import dev.dettmer.simplenotes.utils.ActivityLog
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
+
+private data class FolderButton(val drawer: Boolean, val label: String?, val title: String, val open: () -> Unit)
 
 private const val TIMESTAMP_UPDATE_INTERVAL_MS = 30_000L
 
@@ -153,6 +160,17 @@ fun MainScreen(
     onOpenSettings: () -> Unit,
     onCreateNote: (NewNoteAction, String?) -> Unit
 ) {
+    MainScreenContent(viewModel, onOpenNote, onOpenSettings, onCreateNote)
+}
+
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Composable
+private fun MainScreenContent(
+    viewModel: MainViewModel,
+    onOpenNote: (String?) -> Unit,
+    onOpenSettings: () -> Unit,
+    onCreateNote: (NewNoteAction, String?) -> Unit
+) {
     // 🆕 v2.7.0 (Folders): ordner-unabhängige Liste; jede Pane filtert selbst nach ihrem folderKey.
     val notes by viewModel.sortedNotesUnfoldered.collectAsState()
     val allNotes by viewModel.notes.collectAsState()
@@ -180,13 +198,16 @@ fun MainScreen(
         viewModel.clearSelection()
     }
     BackHandler(enabled = !isSelectionMode && currentFolder != null) {
-        viewModel.goToRoot()
+        viewModel.goToParentFolder()
     }
 
     val isServerConfigured by viewModel.isServerConfigured.collectAsState()
 
     // 🎨 v1.7.0: Display mode (list or grid)
     val displayMode by viewModel.displayMode.collectAsState()
+    val folderDrawer by viewModel.folderDrawer.collectAsState()
+    var showAllNotes by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(folderDrawer) { showAllNotes = false; viewModel.goToRoot() }
     // 🆕 v2.1.0 (F46): Grid column control
     val gridAdaptiveScaling by viewModel.gridAdaptiveScaling.collectAsState()
     val gridManualColumns by viewModel.gridManualColumns.collectAsState()
@@ -208,6 +229,10 @@ fun MainScreen(
     var showBatchColorPicker by remember { mutableStateOf(false) }
     // 🆕 v2.7.0 (Folders): folder dialogs
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var createFolderParent by remember { mutableStateOf<String?>(null) }
+    var folderToCustomize by remember { mutableStateOf<String?>(null) }
+    var folderToRename by remember { mutableStateOf<String?>(null) }
+    var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showMoveSheet by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     // 🆕 v2.8.0 (Local-Only Folders): Auswahl "Server behalten / entfernen" beim Ausschließen
@@ -236,6 +261,8 @@ fun MainScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val ready by viewModel.isReady.collectAsState()
+    LaunchedEffect(ready) { if (ready) viewModel.ensureStarterFolder() }
 
     // ⏱️ Timestamp ticker - increments every 30 seconds to trigger recomposition of relative times
     var timestampTicker by remember { mutableLongStateOf(0L) }
@@ -252,13 +279,11 @@ fun MainScreen(
 
     val isSyncAvailable = isServerConfigured
     val canSync = isSyncAvailable && !isSyncing
-    val lastSuccessfulSync = remember(syncState, timestampTicker) {
-        viewModel.getLastSuccessfulSyncTimestamp()
-    }
-    val syncUpToDate = isSyncAvailable && !isSyncing &&
-        syncState != SyncStateManager.SyncState.ERROR && lastSuccessfulSync > 0L &&
-        allNotes.none { it.syncStatus == SyncStatus.PENDING || it.syncStatus == SyncStatus.CONFLICT }
-
+    val syncClean = canSync && syncState != SyncStateManager.SyncState.ERROR &&
+        viewModel.getLastSuccessfulSyncTimestamp() > 0L && allNotes.none {
+            it.syncStatus == dev.dettmer.simplenotes.models.SyncStatus.PENDING ||
+                it.syncStatus == dev.dettmer.simplenotes.models.SyncStatus.CONFLICT
+        }
     // Handle snackbar events from ViewModel
     LaunchedEffect(Unit) {
         viewModel.showSnackbar.collect { data ->
@@ -281,391 +306,441 @@ fun MainScreen(
 
     // v1.5.0 Hotfix: FAB manuell mit zIndex platzieren für garantierte Sichtbarkeit
     // 🆕 v1.11.0: Äußere Box — ermöglicht NoteTypeFAB als Fullscreen-Overlay über dem Scaffold
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                // Animated switch between normal and selection TopBar
-                AnimatedVisibility(
-                    visible = isSelectionMode,
-                    enter = slideInVertically() + fadeIn(),
-                    exit = slideOutVertically() + fadeOut()
+    val folderActions = HomeFolderActions(
+        select = { name ->
+            showAllNotes = name == null
+            if (name == null) viewModel.goToRoot() else viewModel.enterFolder(name)
+        },
+        add = { createFolderParent = null; showCreateFolderDialog = true },
+        rename = { folderToRename = it; showRenameDialog = true },
+        delete = { folderToDelete = it },
+        customize = { folderToCustomize = it },
+        move = viewModel::moveFolder,
+        addChild = { createFolderParent = it; showCreateFolderDialog = true }
+    )
+    BackHandler(enabled = !folderDrawer && !isSelectionMode && showAllNotes) { showAllNotes = false }
+    FolderNavigation(folderDrawer, folders, currentFolder, folderActions) { openFolders ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                topBar = {
+                    // Animated switch between normal and selection TopBar
+                    AnimatedVisibility(
+                        visible = isSelectionMode,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                        // 🆕 v2.8.0 (Local-Only Folders): alle selektierten Ordner bereits ausgeschlossen?
+                        val selectedAllLocalOnly = selectedFolders.isNotEmpty() &&
+                            selectedFolders.all { it in localOnlyFolderNames }
+                        SelectionTopBar(
+                            selectedNoteCount = selectedNotes.size,
+                            selectedFolderCount = selectedFolders.size,
+                            totalCount = notes.count { currentFolder == null || it.folderName == currentFolder },
+                            allSelectedPinned = notes.filter { it.id in selectedNotes }.all { it.isPinned == true },
+                            isSelectedFolderLocalOnly = selectedAllLocalOnly,
+                            isArchiveView = showArchived, // 🆕 v2.11.0 (Archive)
+                            onCloseSelection = { viewModel.clearSelection() },
+                            onSelectAll = { viewModel.selectAll() },
+                            onTogglePinSelected = { viewModel.togglePinForSelected() },
+                            onToggleArchiveSelected = { viewModel.toggleArchiveForSelected() }, // 🆕 v2.11.0 (Archive)
+                            onColorClick = { showBatchColorPicker = true },
+                            onMoveClick = { showMoveSheet = true },
+                            onRename = { showRenameDialog = true },
+                            onToggleLocalOnly = {
+                                when {
+                                    selectedAllLocalOnly -> viewModel.includeFoldersInSync(selectedFolders)
+                                    // Server konfiguriert → User entscheidet über die Server-Kopien
+                                    isServerConfigured -> showExcludeSyncSheet = true
+                                    else -> viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = false)
+                                }
+                            },
+                            // 🆕 v2.9.0 (Trash): reine Notiz-Auswahl wandert direkt in den Papierkorb
+                            // (kein Bestätigungs-Sheet); nur bei Ordnern im Spiel erscheint der Dialog.
+                            onDeleteSelected = {
+                                if (selectedFolders.isNotEmpty()) {
+                                    showBatchDeleteDialog = true
+                                } else {
+                                    viewModel.moveSelectedToTrash()
+                                }
+                            }
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = !isSelectionMode,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                            MainTopBar(
+                                syncEnabled = canSync,
+                                syncClean = syncClean,
+                                showSyncLegend = isSyncAvailable,
+                                onSyncLegendClick = { showSyncLegend = true },
+                                // 🆕 v1.9.0 (F11): Sort button replaced by filter row toggle
+                                showFilterRow = showFilterRow,
+                                onFilterToggle = { showFilterRow = !showFilterRow },
+                                onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) },
+                                onSettingsClick = onOpenSettings,
+                                foldersButton = FolderButton(
+                                    drawer = folderDrawer, title = customAppTitle,
+                                    label = currentFolder ?: if (!folderDrawer && showAllNotes) {
+                                        stringResource(R.string.home_all_notes)
+                                    } else null,
+                                    open = if (folderDrawer) openFolders else {
+                                        { showAllNotes = false; viewModel.goToRoot() }
+                                    }
+                                )
+                            )
+                    }
+                },
+                // FAB liegt als Fullscreen-Overlay außerhalb des Scaffolds (siehe NoteTypeFAB-Block
+                // weiter unten). Das Scaffold kennt den FAB nicht und kann die Snackbar nicht
+                // automatisch darüber anheben. 72.dp = 56.dp (Material Standard-FAB-Höhe) +
+                // 16.dp (Column bottom padding in NoteTypeFAB).
+                // Kein navigationBarsPadding() hier — das Scaffold konsumiert die Navbar-Insets
+                // für seinen Layout-Bereich; innerhalb des snackbarHost-Slots wäre der Modifier
+                // ein No-Op und würde die Snackbar fälschlicherweise doppelt anheben.
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .padding(bottom = 72.dp)
+                    )
+                },
+                containerColor = MaterialTheme.colorScheme.surface
+            ) { paddingValues ->
+                // 🌟 v1.6.0: PullToRefreshBox only enabled when sync available
+                PullToRefreshBox(
+                    isRefreshing = isSyncing,
+                    onRefresh = { if (isSyncAvailable) viewModel.triggerManualSync(ActivityLog.Trigger.PULL_REFRESH) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
                 ) {
-                    // 🆕 v2.8.0 (Local-Only Folders): alle selektierten Ordner bereits ausgeschlossen?
-                    val selectedAllLocalOnly = selectedFolders.isNotEmpty() &&
-                        selectedFolders.all { it in localOnlyFolderNames }
-                    SelectionTopBar(
-                        selectedNoteCount = selectedNotes.size,
-                        selectedFolderCount = selectedFolders.size,
-                        totalCount = notes.size +
-                            (if (currentFolder == null && !showArchived && !searchActive) folders.size else 0),
-                        allSelectedPinned = notes.filter { it.id in selectedNotes }.all { it.isPinned == true },
-                        isSelectedFolderLocalOnly = selectedAllLocalOnly,
-                        isArchiveView = showArchived, // 🆕 v2.11.0 (Archive)
-                        onCloseSelection = { viewModel.clearSelection() },
-                        onSelectAll = { viewModel.selectAll() },
-                        onTogglePinSelected = { viewModel.togglePinForSelected() },
-                        onToggleArchiveSelected = { viewModel.toggleArchiveForSelected() }, // 🆕 v2.11.0 (Archive)
-                        onColorClick = { showBatchColorPicker = true },
-                        onMoveClick = { showMoveSheet = true },
-                        onRename = { showRenameDialog = true },
-                        onToggleLocalOnly = {
-                            when {
-                                selectedAllLocalOnly -> viewModel.includeFoldersInSync(selectedFolders)
-                                // Server konfiguriert → User entscheidet über die Server-Kopien
-                                isServerConfigured -> showExcludeSyncSheet = true
-                                else -> viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = false)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Main content column
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // 🆕 v1.8.0: Einziges Sync Banner (Progress + Ergebnis)
+                            SyncProgressBanner(
+                                progress = syncProgress,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            SunnyHomeControls(
+                                query = searchQuery, onQuery = { viewModel.setSearchQuery(it) }
+                            )
+                            if (currentFolder != null) {
+                                FolderBreadcrumb(folders, currentFolder, viewModel::goToParentFolder)
                             }
-                        },
-                        // 🆕 v2.9.0 (Trash): reine Notiz-Auswahl wandert direkt in den Papierkorb
-                        // (kein Bestätigungs-Sheet); nur bei Ordnern im Spiel erscheint der Dialog.
-                        onDeleteSelected = {
-                            if (selectedFolders.isNotEmpty()) {
-                                showBatchDeleteDialog = true
-                            } else {
-                                viewModel.moveSelectedToTrash()
+                            // 🆕 v1.9.0 (F06): Filter Chip Row
+                            // 🆕 v1.9.0 (F10): + Inline search field
+                            // 🆕 v1.9.0 (F11): + Sort chip + toggle visibility
+                            AnimatedVisibility(
+                                visible = showFilterRow,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                FilterChipRow(
+                                    currentFilter = noteFilter,
+                                    onFilterSelected = { viewModel.setNoteFilter(it) },
+                                    currentColorFilter = colorFilter, // 🆕 v2.5.0
+                                    onColorFilterSelected = { viewModel.setColorFilter(it) }, // 🆕 v2.5.0
+                                    availableColors = availableColors, // 🆕 v2.5.0
+                                    archiveActive = showArchived, // 🆕 v2.11.0 (Archive)
+                                    onArchiveToggle = { viewModel.setShowArchived(!showArchived) }, // 🆕 v2.11.0 (Archive)
+                                    searchQuery = searchQuery,
+                                    onSearchQueryChanged = { viewModel.setSearchQuery(it) },
+                                    onSortClick = { showSortDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
+
+                            // 🆕 v2.7.0 (Folders): Ordner-Navigation mit Shared-Axis-Animation (wie Notiz öffnen).
+                            // 🔧 Fix Flash beim Ordnerwechsel: jede Pane sortiert sich anhand IHRES EIGENEN
+                            // folderKey selbst (statt der einen globalen, aktiven Sortierung zu vertrauen) —
+                            // sonst übernimmt die gerade verschwindende Pane während der Animation kurz die
+                            // Sortierung des neuen Ordners. Aktiver Ordner nutzt die reaktiven StateFlows
+                            // (live-Update bei Sortierdialog); jeder andere Ordner liest seine eigene
+                            // gespeicherte Einstellung.
+                            val sortSettingsForPane: (String?) -> Pair<SortOption, SortDirection> = { folderKey ->
+                                if (folderKey == currentFolder) {
+                                    sortOption to sortDirection
+                                } else {
+                                    viewModel.sortSettingsFor(folderKey)
+                                }
+                            }
+                            val sortAndPinForFolder: (List<Note>, String?) -> List<Note> = { list, folderKey ->
+                                val (option, direction) = sortSettingsForPane(folderKey)
+                                val sorted = viewModel.sortNotes(list, option, direction)
+                                sorted.filter { it.isPinned == true } + sorted.filter { it.isPinned != true }
+                            }
+                            // Ordner-Section folgt derselben Sortierung wie die Notizen der Pane.
+                            // 🔧 Fix Flash aufgeklappter Sections: analog sortAndPinForFolder — aktiver Ordner
+                            // nutzt die reaktive StateFlow (Live-Toggle), jeder andere seinen eigenen
+                            // gespeicherten Zustand, damit die verschwindende Pane während der Animation
+                            // stabil bleibt.
+                            val collapsedSectionsForFolder: (String?) -> Set<String> = { folderKey ->
+                                if (folderKey == currentFolder) collapsedSections else viewModel.collapsedSectionsFor(folderKey)
+                            }
+                            AnimatedContent(
+                                targetState = currentFolder,
+                                transitionSpec = { folderNavTransition(forward = targetState != null) },
+                                label = "folderNav",
+                                modifier = Modifier.weight(1f)
+                            ) { folderKey ->
+                                val folderHome = !folderDrawer && folderKey == null && !showAllNotes
+                                if (folderHome && !searchActive && !showArchived) {
+                                    FolderDestinations(folders.childrenOf(null), null, folderActions)
+                                } else {
+                                    NotesPane(
+                                        folderKey = folderKey,
+                                        folders = folders,
+                                        isActive = folderKey == currentFolder,
+                                        notes = notes,
+                                        sortOption = sortOption,
+                                        sortDirection = sortDirection,
+                                        sortAndPin = sortAndPinForFolder,
+                                        displayMode = displayMode,
+                                        folderNoteCounts = folderNoteCounts,
+                                        isServerConfigured = isServerConfigured,
+                                        selectedNotes = selectedNotes,
+                                        selectedFolders = selectedFolders,
+                                        localOnlyFolderNames = localOnlyFolderNames, // 🆕 v2.8.0 (Local-Only Folders)
+                                        isSelectionMode = isSelectionMode,
+                                        timestampTicker = timestampTicker,
+                                        gridAdaptiveScaling = gridAdaptiveScaling,
+                                        gridManualColumns = gridManualColumns,
+                                        notePreviewLength = notePreviewLength,
+                                        showNoteTimestamp = showNoteTimestamp,
+                                        showNoteTypeIcon = showNoteTypeIcon,
+                                        collapsedSectionsForFolder = collapsedSectionsForFolder,
+                                        sectionOrder = sectionOrder,
+                                        scrollToTop = scrollToTop,
+                                        syncScrollToTop = syncScrollToTop,
+                                        noteFilter = noteFilter,
+                                        colorFilter = colorFilter,
+                                        showArchived = showArchived, // 🆕 v2.11.0 (Archive)
+                                        searchActive = searchActive, // 🆕 v2.16.0 (#141)
+                                        onResetScrollToTop = { viewModel.resetScrollToTop() },
+                                        onResetSyncScrollToTop = { viewModel.resetSyncCompletedScrollToTop() },
+                                        onEnterFolder = { viewModel.enterFolder(it) },
+                                        onFolderLongPress = { viewModel.startSelectionWithFolder(it) },
+                                        onFolderSelectionToggle = { viewModel.toggleFolderSelection(it) },
+                                        onToggleSection = { viewModel.toggleSectionCollapsed(it) },
+                                        onMoveSection = { from, to -> viewModel.swapSections(from, to) },
+                                        onOpenNote = { onOpenNote(it) },
+                                        onStartSelection = { viewModel.startSelectionMode(it) },
+                                        onToggleSelection = { viewModel.toggleNoteSelection(it) },
+                                        focusManager = focusManager
+                                    )
+                                }
+                            }
+                        }
+
+                        // FAB ist jetzt außerhalb des Scaffolds als Fullscreen-Overlay — siehe unten
+                    }
+                }
+                if (showBatchDeleteDialog) {
+                    // 🆕 v2.9.0 (Trash): nur noch der Ordner-Branch; Notizen-only löscht direkt (siehe oben).
+                    val hasNonEmptyFolders = selectedFolders.any { (folderNoteCounts[it] ?: 0) > 0 }
+                    DeleteSelectionDialog(
+                        noteCount = selectedNotes.size,
+                        folderCount = selectedFolders.size,
+                        hasNonEmptyFolders = hasNonEmptyFolders,
+                        onDismiss = { showBatchDeleteDialog = false },
+                        onConfirm = { keep ->
+                            viewModel.deleteSelection(keepContainedNotes = keep)
+                            showBatchDeleteDialog = false
                         }
                     )
                 }
-                AnimatedVisibility(
-                    visible = !isSelectionMode,
-                    enter = slideInVertically() + fadeIn(),
-                    exit = slideOutVertically() + fadeOut()
-                ) {
-                    if (currentFolder != null) {
-                        FolderTopBar(
-                            folderName = currentFolder!!,
-                            onBack = { viewModel.goToRoot() },
-                            syncEnabled = canSync,
-                            showSyncLegend = isSyncAvailable,
-                            onSyncLegendClick = { showSyncLegend = true },
-                            showFilterRow = showFilterRow,
-                            onFilterToggle = { showFilterRow = !showFilterRow },
-                            onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) },
-                            onSettingsClick = onOpenSettings
-                        )
-                    } else {
-                        MainTopBar(
-                            customTitle = customAppTitle, // 🆕 v1.9.0 (F05)
-                            syncEnabled = canSync,
-                            showSyncLegend = isSyncAvailable,
-                            onSyncLegendClick = { showSyncLegend = true },
-                            // 🆕 v1.9.0 (F11): Sort button replaced by filter row toggle
-                            showFilterRow = showFilterRow,
-                            onFilterToggle = { showFilterRow = !showFilterRow },
-                            onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) },
-                            onSettingsClick = onOpenSettings
-                        )
-                    }
+
+                // 🆕 v1.8.0: Sync Status Legend Dialog
+                if (showSyncLegend) {
+                    SyncStatusLegendDialog(
+                        onDismiss = { showSyncLegend = false }
+                    )
                 }
-            },
-            // FAB liegt als Fullscreen-Overlay außerhalb des Scaffolds (siehe NoteTypeFAB-Block
-            // weiter unten). Das Scaffold kennt den FAB nicht und kann die Snackbar nicht
-            // automatisch darüber anheben. 72.dp = 56.dp (Material Standard-FAB-Höhe) +
-            // 16.dp (Column bottom padding in NoteTypeFAB).
-            // Kein navigationBarsPadding() hier — das Scaffold konsumiert die Navbar-Insets
-            // für seinen Layout-Bereich; innerhalb des snackbarHost-Slots wäre der Modifier
-            // ein No-Op und würde die Snackbar fälschlicherweise doppelt anheben.
-            snackbarHost = {
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .padding(bottom = 72.dp)
+
+                // 🔀 v1.8.0: Sort Dialog
+                if (showSortDialog) {
+                    SortDialog(
+                        currentOption = sortOption,
+                        currentDirection = sortDirection,
+                        onOptionSelected = { option ->
+                            viewModel.setSortOption(option)
+                        },
+                        onDirectionToggled = {
+                            viewModel.toggleSortDirection()
+                        },
+                        onResetToDefault = { viewModel.resetSortToDefault() },
+                        onDismiss = { showSortDialog = false }
+                    )
+                }
+            } // end Scaffold
+
+            // 🆕 v2.5.0: Einheitliche Farbe der Selektion für den Batch-ColorPicker:
+            // 1 Notiz oder alle Notizen gleiche Farbe → diese Farbe anzeigen
+            // Gemischte Farben oder leere Selektion → null (kein Highlight)
+            val selectedDisplayColor: String? by remember {
+                derivedStateOf {
+                    val noteColors = notes.filter { it.id in selectedNotes }.map { it.color }
+                    val folderColors = folders.filter { it.name in selectedFolders }.map { it.color }
+                    (noteColors + folderColors).distinct().singleOrNull()
+                }
+            }
+
+            // 🆕 v2.5.0: Bulk colour picker — shown as overlay above Scaffold
+            if (showBatchColorPicker) {
+                NoteColorPickerSheet(
+                    currentColor = selectedDisplayColor,
+                    onColorSelected = { hex ->
+                        viewModel.setColorForSelected(hex)
+                        showBatchColorPicker = false
+                    },
+                    onDismiss = { showBatchColorPicker = false }
                 )
-            },
-            containerColor = MaterialTheme.colorScheme.surface
-        ) { paddingValues ->
-            // 🌟 v1.6.0: PullToRefreshBox only enabled when sync available
-            PullToRefreshBox(
-                isRefreshing = isSyncing,
-                onRefresh = { if (isSyncAvailable) viewModel.triggerManualSync(ActivityLog.Trigger.PULL_REFRESH) },
+            }
+
+            // 🆕 v2.7.0 (Folders): Folder dialogs/sheet
+            if (showCreateFolderDialog) {
+                CreateFolderDialog(
+                    parentName = createFolderParent,
+                    existingNames = folders.map { it.name },
+                    showLocalOnlyOption = isServerConfigured, // 🆕 v2.8.0 (Local-Only Folders)
+                    onConfirm = { name, localOnly ->
+                        viewModel.createFolder(name, localOnly, createFolderParent)
+                        showCreateFolderDialog = false
+                    },
+                    onDismiss = { showCreateFolderDialog = false }
+                )
+            }
+            folders.firstOrNull { it.name == folderToCustomize }?.let { folder ->
+                FolderAppearanceSheet(folder, onSave = { icon, color ->
+                    viewModel.setFolderAppearance(folder.name, icon, color)
+                    folderToCustomize = null
+                }, onDismiss = { folderToCustomize = null })
+            }
+            // 🆕 v2.8.0 (Local-Only Folders): Auswahl was mit den Server-Kopien passieren soll
+            if (showExcludeSyncSheet) {
+                ExcludeFolderSyncSheet(
+                    onRemoveFromServer = {
+                        viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = true)
+                        showExcludeSyncSheet = false
+                    },
+                    onKeepOnServer = {
+                        viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = false)
+                        showExcludeSyncSheet = false
+                    },
+                    onDismiss = { showExcludeSyncSheet = false }
+                )
+            }
+            if (showMoveSheet) {
+                MoveToFolderSheet(
+                    folders = folders,
+                    currentFolder = currentFolder,
+                    onMoveToRoot = {
+                        viewModel.moveSelectedNotesTo(null)
+                        showMoveSheet = false
+                    },
+                    onMoveToFolder = { f ->
+                        viewModel.moveSelectedNotesTo(f)
+                        showMoveSheet = false
+                    },
+                    onCreateFolder = { name -> viewModel.createFolder(name) },
+                    onDismiss = { showMoveSheet = false }
+                )
+            }
+            // 🆕 v2.7.0 (Folders): Rename-Dialog für genau 1 selektierten Ordner
+            if (showRenameDialog) {
+                val renameTarget = folderToRename ?: selectedFolders.singleOrNull()
+                if (renameTarget != null) {
+                    RenameFolderDialog(
+                        currentName = renameTarget,
+                        existingNames = folders.map { it.name },
+                        onConfirm = { newName ->
+                            viewModel.renameFolder(renameTarget, newName)
+                            showRenameDialog = false
+                            folderToRename = null
+                        },
+                        onDismiss = { showRenameDialog = false; folderToRename = null }
+                    )
+                } else {
+                    showRenameDialog = false
+                }
+            }
+            folderToDelete?.let { name ->
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { folderToDelete = null },
+                    title = { Text(stringResource(R.string.home_delete_folder)) },
+                    text = { Text(stringResource(R.string.home_delete_keep_notes, name)) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            viewModel.startSelectionWithFolder(name)
+                            viewModel.deleteSelection(keepContainedNotes = true)
+                            folderToDelete = null
+                        }) { Text(stringResource(R.string.home_delete_folder)) }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { folderToDelete = null }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                )
+            }
+
+            // 🆕 v1.11.0: FAB als Fullscreen-Overlay ÜBER dem Scaffold — Scrim deckt Statusbar ab
+            // 🆕 v2.11.0 (Archive): FAB im Archiv ausgeblendet (Archiv legt keine neuen Notizen an).
+            AnimatedVisibility(
+                visible = !isSelectionMode && !showArchived,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .zIndex(Float.MAX_VALUE)
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Main content column
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // 🆕 v1.8.0: Einziges Sync Banner (Progress + Ergebnis)
-                        SyncProgressBanner(
-                            progress = syncProgress,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        SyncStatusRow(
-                            isConfigured = isSyncAvailable,
-                            isSyncing = isSyncing,
-                            lastSuccessfulSync = lastSuccessfulSync,
-                            syncUpToDate = syncUpToDate,
-                            onSyncClick = { viewModel.triggerManualSync(ActivityLog.Trigger.TOOLBAR) }
-                        )
-
-                        // 🆕 v1.9.0 (F06): Filter Chip Row
-                        // 🆕 v1.9.0 (F10): + Inline search field
-                        // 🆕 v1.9.0 (F11): + Sort chip + toggle visibility
-                        AnimatedVisibility(
-                            visible = showFilterRow,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            FilterChipRow(
-                                currentFilter = noteFilter,
-                                onFilterSelected = { viewModel.setNoteFilter(it) },
-                                currentColorFilter = colorFilter, // 🆕 v2.5.0
-                                onColorFilterSelected = { viewModel.setColorFilter(it) }, // 🆕 v2.5.0
-                                availableColors = availableColors, // 🆕 v2.5.0
-                                archiveActive = showArchived, // 🆕 v2.11.0 (Archive)
-                                onArchiveToggle = { viewModel.setShowArchived(!showArchived) }, // 🆕 v2.11.0 (Archive)
-                                searchQuery = searchQuery,
-                                onSearchQueryChanged = { viewModel.setSearchQuery(it) },
-                                onSortClick = { showSortDialog = true },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        // 🆕 v2.7.0 (Folders): Ordner-Navigation mit Shared-Axis-Animation (wie Notiz öffnen).
-                        // 🔧 Fix Flash beim Ordnerwechsel: jede Pane sortiert sich anhand IHRES EIGENEN
-                        // folderKey selbst (statt der einen globalen, aktiven Sortierung zu vertrauen) —
-                        // sonst übernimmt die gerade verschwindende Pane während der Animation kurz die
-                        // Sortierung des neuen Ordners. Aktiver Ordner nutzt die reaktiven StateFlows
-                        // (live-Update bei Sortierdialog); jeder andere Ordner liest seine eigene
-                        // gespeicherte Einstellung.
-                        val sortSettingsForPane: (String?) -> Pair<SortOption, SortDirection> = { folderKey ->
-                            if (folderKey == currentFolder) {
-                                sortOption to sortDirection
-                            } else {
-                                viewModel.sortSettingsFor(folderKey)
-                            }
-                        }
-                        val sortAndPinForFolder: (List<Note>, String?) -> List<Note> = { list, folderKey ->
-                            val (option, direction) = sortSettingsForPane(folderKey)
-                            val sorted = viewModel.sortNotes(list, option, direction)
-                            sorted.filter { it.isPinned == true } + sorted.filter { it.isPinned != true }
-                        }
-                        // Ordner-Section folgt derselben Sortierung wie die Notizen der Pane.
-                        val sortFoldersForFolder: (List<Folder>, String?) -> List<Folder> = { list, folderKey ->
-                            val (option, direction) = sortSettingsForPane(folderKey)
-                            sortFolders(list, option, direction)
-                        }
-                        // 🔧 Fix Flash aufgeklappter Sections: analog sortAndPinForFolder — aktiver Ordner
-                        // nutzt die reaktive StateFlow (Live-Toggle), jeder andere seinen eigenen
-                        // gespeicherten Zustand, damit die verschwindende Pane während der Animation
-                        // stabil bleibt.
-                        val collapsedSectionsForFolder: (String?) -> Set<String> = { folderKey ->
-                            if (folderKey == currentFolder) collapsedSections else viewModel.collapsedSectionsFor(folderKey)
-                        }
-                        AnimatedContent(
-                            targetState = currentFolder,
-                            transitionSpec = { folderNavTransition(forward = targetState != null) },
-                            label = "folderNav",
-                            modifier = Modifier.weight(1f)
-                        ) { folderKey ->
-                            NotesPane(
-                                folderKey = folderKey,
-                                isActive = folderKey == currentFolder,
-                                notes = notes,
-                                sortOption = sortOption,
-                                sortDirection = sortDirection,
-                                sortAndPin = sortAndPinForFolder,
-                                sortFoldersFn = sortFoldersForFolder,
-                                displayMode = displayMode,
-                                folders = folders,
-                                folderNoteCounts = folderNoteCounts,
-                                isServerConfigured = isServerConfigured,
-                                selectedNotes = selectedNotes,
-                                selectedFolders = selectedFolders,
-                                localOnlyFolderNames = localOnlyFolderNames, // 🆕 v2.8.0 (Local-Only Folders)
-                                isSelectionMode = isSelectionMode,
-                                timestampTicker = timestampTicker,
-                                gridAdaptiveScaling = gridAdaptiveScaling,
-                                gridManualColumns = gridManualColumns,
-                                notePreviewLength = notePreviewLength,
-                                showNoteTimestamp = showNoteTimestamp,
-                                showNoteTypeIcon = showNoteTypeIcon,
-                                collapsedSectionsForFolder = collapsedSectionsForFolder,
-                                sectionOrder = sectionOrder,
-                                scrollToTop = scrollToTop,
-                                syncScrollToTop = syncScrollToTop,
-                                noteFilter = noteFilter,
-                                colorFilter = colorFilter,
-                                showArchived = showArchived, // 🆕 v2.11.0 (Archive)
-                                searchActive = searchActive, // 🆕 v2.16.0 (#141)
-                                onResetScrollToTop = { viewModel.resetScrollToTop() },
-                                onResetSyncScrollToTop = { viewModel.resetSyncCompletedScrollToTop() },
-                                onEnterFolder = { viewModel.enterFolder(it) },
-                                onFolderLongPress = { viewModel.startSelectionWithFolder(it) },
-                                onFolderSelectionToggle = { viewModel.toggleFolderSelection(it) },
-                                onToggleSection = { viewModel.toggleSectionCollapsed(it) },
-                                onMoveSection = { from, to -> viewModel.swapSections(from, to) },
-                                onOpenNote = { onOpenNote(it) },
-                                onStartSelection = { viewModel.startSelectionMode(it) },
-                                onToggleSelection = { viewModel.toggleNoteSelection(it) },
-                                focusManager = focusManager
-                            )
-                        }
-                    }
-
-                    // FAB ist jetzt außerhalb des Scaffolds als Fullscreen-Overlay — siehe unten
-                }
-            }
-            if (showBatchDeleteDialog) {
-                // 🆕 v2.9.0 (Trash): nur noch der Ordner-Branch; Notizen-only löscht direkt (siehe oben).
-                val hasNonEmptyFolders = selectedFolders.any { (folderNoteCounts[it] ?: 0) > 0 }
-                DeleteSelectionDialog(
-                    noteCount = selectedNotes.size,
-                    folderCount = selectedFolders.size,
-                    hasNonEmptyFolders = hasNonEmptyFolders,
-                    onDismiss = { showBatchDeleteDialog = false },
-                    onConfirm = { keep ->
-                        viewModel.deleteSelection(keepContainedNotes = keep)
-                        showBatchDeleteDialog = false
-                    }
+                NoteTypeFAB(
+                    showCreateFolder = true,
+                    createFolderLabel = if (currentFolder != null) R.string.folder_create_child else R.string.fab_create_folder,
+                    onCreateNote = { action -> onCreateNote(action, currentFolder) },
+                    onCreateFolder = { createFolderParent = currentFolder; showCreateFolderDialog = true }
                 )
             }
-
-            // 🆕 v1.8.0: Sync Status Legend Dialog
-            if (showSyncLegend) {
-                SyncStatusLegendDialog(
-                    onDismiss = { showSyncLegend = false }
-                )
-            }
-
-            // 🔀 v1.8.0: Sort Dialog
-            if (showSortDialog) {
-                SortDialog(
-                    currentOption = sortOption,
-                    currentDirection = sortDirection,
-                    onOptionSelected = { option ->
-                        viewModel.setSortOption(option)
-                    },
-                    onDirectionToggled = {
-                        viewModel.toggleSortDirection()
-                    },
-                    onResetToDefault = { viewModel.resetSortToDefault() },
-                    onDismiss = { showSortDialog = false }
-                )
-            }
-        } // end Scaffold
-
-        // 🆕 v2.5.0: Einheitliche Farbe der Selektion für den Batch-ColorPicker:
-        // 1 Notiz oder alle Notizen gleiche Farbe → diese Farbe anzeigen
-        // Gemischte Farben oder leere Selektion → null (kein Highlight)
-        val selectedDisplayColor: String? by remember {
-            derivedStateOf {
-                val noteColors = notes.filter { it.id in selectedNotes }.map { it.color }
-                val folderColors = folders.filter { it.name in selectedFolders }.map { it.color }
-                (noteColors + folderColors).distinct().singleOrNull()
-            }
-        }
-
-        // 🆕 v2.5.0: Bulk colour picker — shown as overlay above Scaffold
-        if (showBatchColorPicker) {
-            NoteColorPickerSheet(
-                currentColor = selectedDisplayColor,
-                onColorSelected = { hex ->
-                    viewModel.setColorForSelected(hex)
-                    showBatchColorPicker = false
-                },
-                onDismiss = { showBatchColorPicker = false }
-            )
-        }
-
-        // 🆕 v2.7.0 (Folders): Folder dialogs/sheet
-        if (showCreateFolderDialog) {
-            CreateFolderDialog(
-                showLocalOnlyOption = isServerConfigured, // 🆕 v2.8.0 (Local-Only Folders)
-                onConfirm = { name, localOnly ->
-                    viewModel.createFolder(name, localOnly)
-                    showCreateFolderDialog = false
-                },
-                onDismiss = { showCreateFolderDialog = false }
-            )
-        }
-        // 🆕 v2.8.0 (Local-Only Folders): Auswahl was mit den Server-Kopien passieren soll
-        if (showExcludeSyncSheet) {
-            ExcludeFolderSyncSheet(
-                onRemoveFromServer = {
-                    viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = true)
-                    showExcludeSyncSheet = false
-                },
-                onKeepOnServer = {
-                    viewModel.excludeFoldersFromSync(selectedFolders, removeFromServer = false)
-                    showExcludeSyncSheet = false
-                },
-                onDismiss = { showExcludeSyncSheet = false }
-            )
-        }
-        if (showMoveSheet) {
-            MoveToFolderSheet(
-                folders = folders,
-                currentFolder = currentFolder,
-                onMoveToRoot = {
-                    viewModel.moveSelectedNotesTo(null)
-                    showMoveSheet = false
-                },
-                onMoveToFolder = { f ->
-                    viewModel.moveSelectedNotesTo(f)
-                    showMoveSheet = false
-                },
-                onCreateFolder = { name -> viewModel.createFolder(name) },
-                onDismiss = { showMoveSheet = false }
-            )
-        }
-        // 🆕 v2.7.0 (Folders): Rename-Dialog für genau 1 selektierten Ordner
-        if (showRenameDialog) {
-            val renameTarget = selectedFolders.singleOrNull()
-            if (renameTarget != null) {
-                RenameFolderDialog(
-                    currentName = renameTarget,
-                    existingNames = folders.map { it.name },
-                    onConfirm = { newName ->
-                        viewModel.renameFolder(renameTarget, newName)
-                        showRenameDialog = false
-                    },
-                    onDismiss = { showRenameDialog = false }
-                )
-            } else {
-                showRenameDialog = false
-            }
-        }
-
-        // 🆕 v1.11.0: FAB als Fullscreen-Overlay ÜBER dem Scaffold — Scrim deckt Statusbar ab
-        // 🆕 v2.11.0 (Archive): FAB im Archiv ausgeblendet (Archiv legt keine neuen Notizen an).
-        AnimatedVisibility(
-            visible = !isSelectionMode && !showArchived,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(Float.MAX_VALUE)
-        ) {
-            NoteTypeFAB(
-                showCreateFolder = currentFolder == null,
-                onCreateNote = { action -> onCreateNote(action, currentFolder) },
-                onCreateFolder = { showCreateFolderDialog = true }
-            )
-        }
-    } // end outer Box
+        } // end outer Box
+    } // folder navigation
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainTopBar(
-    customTitle: String, // 🆕 v1.9.0 (F05): Custom app title (empty = default)
     syncEnabled: Boolean,
+    syncClean: Boolean,
     showSyncLegend: Boolean, // 🆕 v1.8.0: Ob der Hilfe-Button sichtbar sein soll
     onSyncLegendClick: () -> Unit, // 🆕 v1.8.0
     showFilterRow: Boolean, // 🆕 v1.9.0 (F11): Filter row toggle state
     onFilterToggle: () -> Unit, // 🆕 v1.9.0 (F11): Toggle filter row visibility
     onSyncClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    foldersButton: FolderButton
 ) {
     TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = foldersButton.open) {
+                Icon(if (foldersButton.drawer) Icons.Default.Menu else Icons.Default.Folder,
+                    stringResource(R.string.home_open_folders))
+            }
+        },
         title = {
+            val title = foldersButton.label ?: foldersButton.title.ifBlank { stringResource(R.string.main_title) }
             Text(
                 // 🆕 v1.9.0 (F05): Use custom title if set, otherwise default
-                text = customTitle.ifBlank { stringResource(R.string.main_title) },
+                text = buildAnnotatedString {
+                    append(title.removeSuffix("+"))
+                    if (title.endsWith("+")) {
+                        withStyle(SpanStyle(color = LocalHomeAccent.current.color)) { append("+") }
+                    }
+                },
                 style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -673,6 +748,7 @@ private fun MainTopBar(
         actions = {
             TopBarActions(
                 syncEnabled = syncEnabled,
+                syncClean = syncClean,
                 showSyncLegend = showSyncLegend,
                 onSyncLegendClick = onSyncLegendClick,
                 showFilterRow = showFilterRow,
@@ -692,6 +768,7 @@ private fun MainTopBar(
 @Composable
 private fun TopBarActions(
     syncEnabled: Boolean,
+    syncClean: Boolean,
     showSyncLegend: Boolean,
     onSyncLegendClick: () -> Unit,
     showFilterRow: Boolean,
@@ -703,67 +780,16 @@ private fun TopBarActions(
         Icon(
             imageVector = Icons.Outlined.Tune,
             contentDescription = stringResource(R.string.toggle_filter_row),
-            tint = if (showFilterRow) MaterialTheme.colorScheme.primary else LocalContentColor.current
+            tint = if (showFilterRow) MaterialTheme.colorScheme.onPrimaryContainer else LocalContentColor.current
         )
     }
-    if (showSyncLegend) {
-        IconButton(onClick = onSyncLegendClick) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                contentDescription = stringResource(R.string.sync_legend_button)
-            )
-        }
-    }
-    IconButton(onClick = onSyncClick, enabled = syncEnabled) {
-        Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_sync))
+    IconButton(onClick = { if (syncEnabled) onSyncClick() else onSyncLegendClick() }, enabled = showSyncLegend) {
+        Icon(imageVector = if (syncClean) Icons.Outlined.CloudDone else Icons.Outlined.CloudSync,
+            contentDescription = stringResource(R.string.action_sync),
+            tint = if (syncClean) dev.dettmer.simplenotes.ui.theme.SunnyColors.SyncGreen else LocalContentColor.current)
     }
     IconButton(onClick = onSettingsClick) {
         Icon(imageVector = Icons.Default.Settings, contentDescription = stringResource(R.string.action_settings))
-    }
-}
-
-@Composable
-private fun SyncStatusRow(
-    isConfigured: Boolean,
-    isSyncing: Boolean,
-    lastSuccessfulSync: Long,
-    syncUpToDate: Boolean,
-    onSyncClick: () -> Unit
-) {
-    val status = when {
-        !isConfigured -> stringResource(R.string.sync_status_not_configured)
-        isSyncing -> stringResource(R.string.sync_status_in_progress)
-        lastSuccessfulSync > 0L -> stringResource(
-            R.string.sync_status_last_success,
-            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(lastSuccessfulSync))
-        )
-        else -> stringResource(R.string.sync_status_never)
-    }
-    androidx.compose.foundation.layout.Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = status,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        if (syncUpToDate) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            TextButton(onClick = onSyncClick, enabled = isConfigured && !isSyncing) {
-                Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-                Text(text = stringResource(R.string.action_sync))
-            }
-        }
     }
 }
 
@@ -834,54 +860,6 @@ private fun SelectionTopBar(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FolderTopBar(
-    folderName: String,
-    onBack: () -> Unit,
-    syncEnabled: Boolean,
-    showSyncLegend: Boolean,
-    onSyncLegendClick: () -> Unit,
-    showFilterRow: Boolean,
-    onFilterToggle: () -> Unit,
-    onSyncClick: () -> Unit,
-    onSettingsClick: () -> Unit
-) {
-    TopAppBar(
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back)
-                )
-            }
-        },
-        title = {
-            Text(
-                text = folderName,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        actions = {
-            TopBarActions(
-                syncEnabled = syncEnabled,
-                showSyncLegend = showSyncLegend,
-                onSyncLegendClick = onSyncLegendClick,
-                showFilterRow = showFilterRow,
-                onFilterToggle = onFilterToggle,
-                onSyncClick = onSyncClick,
-                onSettingsClick = onSettingsClick
-            )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface
-        )
-    )
-}
-
 /** 🆕 v2.7.0 (Folders): Shared-Axis-X Transition zwischen Root und Ordner (wie Notiz-Öffnen-Animation). */
 private fun folderNavTransition(forward: Boolean): ContentTransform {
     val slide: FiniteAnimationSpec<IntOffset> = tween(FOLDER_ANIM_DURATION_MS, easing = FastOutSlowInEasing)
@@ -915,14 +893,13 @@ private fun folderNavTransition(forward: Boolean): ContentTransform {
 @Composable
 private fun NotesPane(
     folderKey: String?,
+    folders: List<Folder>,
     isActive: Boolean,
     notes: List<Note>,
     sortOption: SortOption, // 🔧 aktive Sortierung — nur Remember-Key, damit die aktive Pane sofort reagiert
     sortDirection: SortDirection, // 🔧 s.o.
     sortAndPin: (List<Note>, String?) -> List<Note>, // 🔧 sortiert+pinnt anhand des EIGENEN folderKey
-    sortFoldersFn: (List<Folder>, String?) -> List<Folder>, // 🔧 dito für die Ordner-Section
     displayMode: String,
-    folders: List<Folder>,
     folderNoteCounts: Map<String, Int>,
     isServerConfigured: Boolean,
     selectedNotes: Set<String>,
@@ -963,9 +940,7 @@ private fun NotesPane(
     val listState = remember(folderKey) { LazyListState() }
     val gridState = remember(folderKey) { LazyStaggeredGridState() }
     // Ordner nur in der Root-Ansicht — und nicht während einer Suche, die ohnehin flach über alles geht
-    val foldersForPane = remember(folders, folderKey, showArchived, searchActive, sortOption, sortDirection) {
-        if (folderKey == null && !showArchived && !searchActive) sortFoldersFn(folders, folderKey) else emptyList()
-    }
+    val foldersForPane = if (folderKey != null && !searchActive && !showArchived) folders.childrenOf(folderKey) else emptyList()
     // 🆕 v2.7.0 (Folders): Notizen dieses Slots — eigener folderKey, nicht der gerade aktive Ordner.
     // 🆕 v2.11.0 (Archive): Archiv-Ansicht ist eine flache Liste über alle Ordner.
     // 🆕 v2.16.0 (#141): Suche ebenso — sonst zeigt die Root-Ansicht nur Root-Treffer und
@@ -974,7 +949,7 @@ private fun NotesPane(
     // Dispatchers.Default nur nötig, falls ein einzelner Ordner je Tausende Notizen enthält.
     val paneNotes = remember(notes, folderKey, showArchived, searchActive, sortOption, sortDirection) {
         val filtered =
-            if (showArchived || searchActive) notes else notes.filter { it.folderName == folderKey }
+            if (folderKey == null || showArchived) notes else notes.filter { it.folderName == folderKey }
         sortAndPin(filtered, folderKey)
     }
     // 🔧 Fix Flash aufgeklappter Sections: aktive Pane liest reaktiv (Live-Toggle), die
@@ -1067,7 +1042,7 @@ private fun NotesPane(
             previewLength = notePreviewLength,
             showTimestamp = showNoteTimestamp,
             showTypeIcon = showNoteTypeIcon,
-            showFolderLabels = searchActive, // 🆕 v2.16.0 (#141)
+            showFolderLabels = true,
             modifier = Modifier.fillMaxSize(),
             onNoteClick = { note ->
                 focusManager.clearFocus()
@@ -1099,7 +1074,7 @@ private fun NotesPane(
             previewLength = notePreviewLength,
             showTimestamp = showNoteTimestamp,
             showTypeIcon = showNoteTypeIcon,
-            showFolderLabels = searchActive, // 🆕 v2.16.0 (#141)
+            showFolderLabels = true,
             listState = listState,
             modifier = Modifier.fillMaxSize(),
             folders = foldersForPane,

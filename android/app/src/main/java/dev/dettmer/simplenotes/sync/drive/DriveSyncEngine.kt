@@ -6,7 +6,6 @@ import com.google.gson.Gson
 import dev.dettmer.simplenotes.backup.BackupAsset
 import dev.dettmer.simplenotes.models.SyncStatus
 import dev.dettmer.simplenotes.storage.AssetStore
-import dev.dettmer.simplenotes.storage.FolderMeta
 import dev.dettmer.simplenotes.storage.FolderStore
 import dev.dettmer.simplenotes.storage.NotesStorage
 import dev.dettmer.simplenotes.utils.AssetReferences
@@ -57,7 +56,7 @@ class DriveSyncEngine(private val context: Context) {
             restoreAssets(snapshots, plan)
 
             val currentFolders = folders.loadMeta()
-            val mergedFolders = mergeFolders(snapshots, currentFolders, localOnlyFolders)
+            val mergedFolders = mergeDriveFolderMetadata(snapshots, currentFolders, localOnlyFolders)
             val publishedNotes = plan.versionsToPublish.mapNotNull { it.note }
             val snapshotAssets = collectAssets(publishedNotes)
             val outgoing = DriveSnapshot(
@@ -98,18 +97,6 @@ class DriveSyncEngine(private val context: Context) {
             }
         }
     }
-
-    private fun mergeFolders(
-        snapshots: List<DriveSnapshot>,
-        currentFolders: List<FolderMeta>,
-        localOnlyFolders: Set<String>
-    ): List<FolderMeta> = (snapshots.flatMap { it.folders } + currentFolders)
-        .filter { !it.name.isNullOrBlank() }
-        .groupBy { it.name.lowercase() }
-        .map { (_, versions) ->
-            versions.firstOrNull { it.name in localOnlyFolders && it in currentFolders }
-                ?: versions.maxWith(compareBy<FolderMeta> { it.updatedAt }.thenBy { it.deleted })
-        }
 
     private fun collectAssets(notes: List<dev.dettmer.simplenotes.models.Note>): List<BackupAsset> =
         AssetReferences.extractAllReferenced(notes).map { name ->

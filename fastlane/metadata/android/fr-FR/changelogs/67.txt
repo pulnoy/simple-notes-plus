@@ -1,0 +1,1 @@
+Accueil crème et jaune, recherche toujours visible, dossiers ajoutables, renommables et supprimables. Aperçus photo et lecture des mémos vocaux dans les cartes. Base 0.1.4 avec conservation des notes et de la synchronisation Drive.

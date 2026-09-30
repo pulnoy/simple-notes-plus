@@ -87,7 +87,11 @@ fun ChangelogScreen(onBack: () -> Unit) {
     LaunchedEffect(lang) {
         versions.clear()
         withContext(Dispatchers.IO) {
-            val file = if (lang == "de") "changelog.de.md" else "changelog.md"
+            val file = when (lang) {
+                "fr" -> "changelog.fr.md"
+                "de" -> "changelog.de.md"
+                else -> "changelog.md"
+            }
             val text = context.assets.open(file).bufferedReader().readText()
             val chunks = text.split(Regex("(?m)^## ")).drop(1).map { "## $it" }
             for (chunk in chunks) {
