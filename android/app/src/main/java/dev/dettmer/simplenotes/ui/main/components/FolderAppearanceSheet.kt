@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -35,7 +38,8 @@ fun FolderAppearanceSheet(folder: Folder, onSave: (String?, String?) -> Unit, on
     var color by remember(folder.name) { mutableStateOf(folder.color) }
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(20.dp).navigationBarsPadding(),
+        Column(Modifier.fillMaxWidth().heightIn(max = 620.dp).verticalScroll(rememberScrollState())
+            .padding(20.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(folder.name, style = MaterialTheme.typography.titleLarge)
             Text(stringResource(R.string.folder_icon_title))

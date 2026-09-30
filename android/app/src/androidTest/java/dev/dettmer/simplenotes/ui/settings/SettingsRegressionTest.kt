@@ -133,8 +133,8 @@ class SettingsRegressionTest {
             compose.waitForIdle()
             compose.runOnIdle { assertEquals(route.route, navigation.currentDestination?.route) }
             if (route == SettingsRoute.Changelog) {
-                compose.waitUntil(10_000) { compose.onAllNodesWithText("v0.1.9").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithText("v0.1.9").assertIsDisplayed()
+                compose.waitUntil(10_000) { compose.onAllNodesWithText("v0.1.10").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("v0.1.10").assertIsDisplayed()
             }
             compose.runOnIdle { navigation.popBackStack() }
             compose.waitForIdle()
@@ -145,9 +145,13 @@ class SettingsRegressionTest {
     @Test fun backupAndRestoreKeepFolderNavigationPreference() = runBlocking {
         ThemePreferences.setFolderDrawer(prefs, false)
         val file = File(app.cacheDir, "settings-regression-backup.json")
+        // Overwriting a longer backup must truncate its old tail before writing JSON.
+        val previousSize = file.length().toInt() + 1_000_000
+        file.writeText("x".repeat(previousSize))
         val uri = Uri.fromFile(file)
         val manager = BackupManager(app)
         assertTrue(manager.createBackup(uri, includeServerSettings = true).success)
+        assertTrue(file.length() < previousSize)
         ThemePreferences.setFolderDrawer(prefs, true)
         assertTrue(manager.restoreBackup(uri, RestoreMode.MERGE, restoreServerSettings = true).success)
         assertFalse(ThemePreferences.getFolderDrawer(prefs))

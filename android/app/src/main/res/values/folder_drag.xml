@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folder_icon_book">Book</string>
+    <string name="folder_icon_health">Health</string>
+    <string name="folder_icon_fitness">Fitness</string>
+    <string name="folder_icon_music">Music</string>
+    <string name="folder_icon_movie">Movie</string>
+    <string name="folder_icon_games">Games</string>
+    <string name="folder_icon_restaurant">Restaurant</string>
+    <string name="folder_icon_coffee">Coffee</string>
+    <string name="folder_icon_pets">Pets</string>
+    <string name="folder_icon_nature">Nature</string>
+    <string name="folder_icon_car">Car</string>
+    <string name="folder_icon_bike">Bike</string>
+    <string name="folder_icon_train">Train</string>
+    <string name="folder_icon_beach">Beach</string>
+    <string name="folder_icon_money">Money</string>
+    <string name="folder_icon_bank">Bank</string>
+    <string name="folder_icon_receipt">Receipt</string>
+    <string name="folder_icon_gift">Gift</string>
+    <string name="folder_icon_idea">Idea</string>
+    <string name="folder_icon_tools">Tools</string>
+    <string name="folder_icon_computer">Computer</string>
+    <string name="folder_icon_phone">Phone</string>
+    <string name="folder_icon_mail">Mail</string>
+    <string name="folder_icon_cloud">Cloud</string>
+    <string name="folder_icon_security">Security</string>
+    <string name="folder_icon_science">Science</string>
+    <string name="folder_icon_language">Language</string>
+    <string name="folder_icon_flag">Flag</string>
+    <string name="folder_drawer_locked">Drawer locked</string>
+    <string name="folder_drawer_unlocked">Reordering enabled</string>
+    <string name="folder_drawer_unlock">Unlock drawer</string>
+    <string name="folder_drawer_lock">Lock drawer</string>
+    <string name="folder_drag_handle">Move folder %1$s</string>
+    <string name="folder_drag_hint">Hold a handle, then drag.</string>
+</resources>

@@ -1,5 +1,12 @@
 # Historique de Simple Notes+
 
+## [0.1.10] - Glisser-déposer et verrouillage
+
+- Quarante icônes disponibles pour personnaliser les dossiers.
+- Réorganisation par appui long sur une poignée puis glisser-déposer.
+- Verrouillage du tiroir activé par défaut, mémorisé sur cet appareil.
+- Sélecteur des icônes et couleurs défilant.
+
 ## [0.1.9] - Dossiers personnalisables
 
 - Réorganisation des dossiers dans le tiroir avec Monter et Descendre.

@@ -231,7 +231,7 @@ class BackupManager(private val context: Context, private val ioDispatcher: Coro
                     jsonString.toByteArray()
                 }
 
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
                     outputStream.write(dataToWrite)
                     Logger.d(TAG, "✅ Backup created successfully$encryptedSuffix")
                 }

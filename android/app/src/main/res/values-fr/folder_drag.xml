@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folder_icon_book">Livres</string>
+    <string name="folder_icon_health">Santé</string>
+    <string name="folder_icon_fitness">Sport</string>
+    <string name="folder_icon_music">Musique</string>
+    <string name="folder_icon_movie">Films</string>
+    <string name="folder_icon_games">Jeux</string>
+    <string name="folder_icon_restaurant">Cuisine</string>
+    <string name="folder_icon_coffee">Café</string>
+    <string name="folder_icon_pets">Animaux</string>
+    <string name="folder_icon_nature">Nature</string>
+    <string name="folder_icon_car">Voiture</string>
+    <string name="folder_icon_bike">Vélo</string>
+    <string name="folder_icon_train">Train</string>
+    <string name="folder_icon_beach">Vacances</string>
+    <string name="folder_icon_money">Budget</string>
+    <string name="folder_icon_bank">Banque</string>
+    <string name="folder_icon_receipt">Factures</string>
+    <string name="folder_icon_gift">Cadeaux</string>
+    <string name="folder_icon_idea">Idées</string>
+    <string name="folder_icon_tools">Bricolage</string>
+    <string name="folder_icon_computer">Informatique</string>
+    <string name="folder_icon_phone">Téléphone</string>
+    <string name="folder_icon_mail">Courrier</string>
+    <string name="folder_icon_cloud">Nuage</string>
+    <string name="folder_icon_security">Sécurité</string>
+    <string name="folder_icon_science">Sciences</string>
+    <string name="folder_icon_language">Langues</string>
+    <string name="folder_icon_flag">Objectifs</string>
+    <string name="folder_drawer_locked">Tiroir verrouillé</string>
+    <string name="folder_drawer_unlocked">Réorganisation activée</string>
+    <string name="folder_drawer_unlock">Déverrouiller le tiroir</string>
+    <string name="folder_drawer_lock">Verrouiller le tiroir</string>
+    <string name="folder_drag_handle">Déplacer le dossier %1$s</string>
+    <string name="folder_drag_hint">Appui long sur une poignée, puis glissez.</string>
+</resources>

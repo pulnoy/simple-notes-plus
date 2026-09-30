@@ -32,6 +32,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import dev.dettmer.simplenotes.R
@@ -60,12 +61,16 @@ class SunnyHomeTest {
     @Before fun prepareHome() {
         val preferences = app.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         preferences.edit().putString(Constants.KEY_DISPLAY_MODE, "grid")
+            .putBoolean("folder_drawer_locked", true)
             .putBoolean(Constants.KEY_SHOW_NOTE_TIMESTAMP, true)
             .putBoolean(Constants.KEY_SHOW_NOTE_TYPE_ICON, true)
             .putString(Constants.KEY_CUSTOM_APP_TITLE, "").apply()
         ThemePreferences.setNotePreviewLength(preferences, NotePreviewLength.STANDARD)
         prepareMediaFixtures()
         runBlocking {
+            val folders = FolderStore(app)
+            listOf("Dossier famille", "Dossier travail", "Famille renommée", "Voyage été", "Photos voyage",
+                "Glisser A", "Glisser B", "Glisser C").forEach { folders.deleteFolder(it) }
             FolderStore(app).addFolder("Personnel")
             val store = NotesStorage(app)
             store.saveNote(Note(id = "sunny-demo-pinned", title = "Idées du week-end",
@@ -92,6 +97,7 @@ class SunnyHomeTest {
         model.createFolder("Dossier travail")
         compose.waitUntil(10_000) { model.folders.value.any { it.name == "Dossier travail" } }
         openFolders()
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_drawer_unlock)).performClick()
         folderMenu("Dossier famille", R.string.folder_move_down)
         compose.waitUntil(10_000) {
             val roots = model.folders.value.childrenOf(null).map { it.name }
@@ -100,8 +106,8 @@ class SunnyHomeTest {
         folderMenu("Dossier famille", R.string.folder_customize)
         compose.onNodeWithText(app.getString(R.string.folder_icon_home)).performClick()
         compose.onNodeWithContentDescription(app.getString(R.string.cd_note_color_swatch,
-            app.getString(R.string.note_color_yellow))).performClick()
-        compose.onNodeWithText(app.getString(R.string.folder_save_appearance)).performClick()
+            app.getString(R.string.note_color_yellow))).performScrollTo().performClick()
+        compose.onNodeWithText(app.getString(R.string.folder_save_appearance)).performScrollTo().performClick()
         compose.waitUntil(10_000) { model.folders.value.any {
             it.name == "Dossier famille" && it.icon == "home" && it.color == "#FFF475"
         } }
@@ -143,6 +149,65 @@ class SunnyHomeTest {
         model.startSelectionWithFolder("Dossier travail")
         model.deleteSelection(keepContainedNotes = true)
         compose.waitUntil(10_000) { model.folders.value.none { it.name == "Dossier travail" } }
+    }
+
+    @Test fun drawerLockBlocksDraggingAndUnlockedHandlesReorderFolders() {
+        model.createFolder("Glisser A")
+        model.createFolder("Glisser B")
+        model.createFolder("Glisser C")
+        compose.waitUntil(10_000) { model.folders.value.any { it.name == "Glisser C" } }
+        openFolders()
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_drawer_unlock)).assertIsDisplayed()
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).assertDoesNotExist()
+        val before = model.folders.value.childrenOf(null).map { it.name }
+        compose.onNodeWithTag("home_folder_Glisser A").performTouchInput {
+            down(center); advanceEventTime(700); moveBy(Offset(0f, 150f)); up()
+        }
+        assertEquals(before, model.folders.value.childrenOf(null).map { it.name })
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_drawer_unlock)).performClick()
+        val from = compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.y
+        val to = compose.onNodeWithTag("folder_drag_Glisser C", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.y
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(700)
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput {
+            advanceEventTime(700); moveBy(Offset(0f, to - from)); advanceEventTime(100); up()
+        }
+        val expected = before.toMutableList().apply {
+            val destination = indexOf("Glisser C")
+            add(destination, removeAt(indexOf("Glisser A")))
+        }
+        compose.waitUntil(10_000) { model.folders.value.childrenOf(null).map { it.name } == expected }
+        val cancelFrom = compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.y
+        val cancelTo = compose.onNodeWithTag("folder_drag_Glisser B", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.y
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(700)
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput {
+            advanceEventTime(700); moveBy(Offset(0f, cancelTo - cancelFrom)); cancel()
+        }
+        compose.waitForIdle()
+        assertEquals(expected, model.folders.value.childrenOf(null).map { it.name })
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(700)
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).performTouchInput {
+            advanceEventTime(700); moveBy(Offset(0f, cancelTo - cancelFrom)); up()
+        }
+        val upward = expected.toMutableList().apply {
+            val destination = indexOf("Glisser B")
+            add(destination, removeAt(indexOf("Glisser A")))
+        }
+        compose.waitUntil(10_000) { model.folders.value.childrenOf(null).map { it.name } == upward }
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_drawer_lock)).performClick()
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).assertDoesNotExist()
+        assertTrue(app.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE).getBoolean("folder_drawer_locked", false))
+        screenshot("locked-drawer.png")
+        compose.onNodeWithText(app.getString(R.string.home_all_notes)).performClick()
+        openFolders()
+        compose.onNodeWithContentDescription(app.getString(R.string.folder_drawer_unlock)).assertIsDisplayed()
+        compose.onNodeWithTag("folder_drag_Glisser A", useUnmergedTree = true).assertDoesNotExist()
+        listOf("Glisser A", "Glisser B", "Glisser C").forEach { name ->
+            model.startSelectionWithFolder(name); model.deleteSelection(true)
+            compose.waitUntil(10_000) { model.folders.value.none { it.name == name } }
+        }
     }
 
     private fun folderMenu(name: String, action: Int) {

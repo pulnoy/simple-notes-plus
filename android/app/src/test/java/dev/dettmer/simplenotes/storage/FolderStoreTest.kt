@@ -16,6 +16,14 @@ import org.junit.Before
 import org.junit.Test
 
 class FolderStoreTest {
+    @Test fun `recreating a deleted child uses the newly selected parent`() = runBlocking {
+        store.addFolder("Old parent")
+        store.addFolder("New parent")
+        store.addFolder("Child", parentName = "Old parent")
+        store.deleteFolder("Child")
+        store.addFolder("Child", parentName = "New parent")
+        assertEquals("New parent", store.loadFolders().first { it.name == "Child" }.parentName)
+    }
     @Test fun `hierarchy style and order survive reload rename and undo`() = runBlocking {
         store.addFolder("Work")
         store.addFolder("Personal")

@@ -80,12 +80,13 @@ class FolderStore(private val context: Context) {
         mutex.withLock {
             val current = loadMetaUnsafe().toMutableList()
             val idx = current.indexOfFirst { it.name.equals(trimmed, ignoreCase = true) }
+            val parent = parentName?.takeIf { p -> current.any { it.name == p && !it.deleted } }
             if (idx >= 0) {
                 val existing = current[idx]
                 if (!existing.deleted && existing.name == trimmed) return@withLock
-                current[idx] = existing.copy(name = trimmed, deleted = false, updatedAt = now())
+                current[idx] = existing.copy(name = trimmed, deleted = false, updatedAt = now(),
+                    parentName = if (existing.deleted) parent else existing.parentName)
             } else {
-                val parent = parentName?.takeIf { p -> current.any { it.name == p && !it.deleted } }
                 val lastOrder = current.filter { !it.deleted && it.parentName == parent }.mapNotNull { it.order }.maxOrNull()
                 current.add(FolderMeta(name = trimmed, updatedAt = now(), parentName = parent, order = lastOrder?.plus(1)))
             }

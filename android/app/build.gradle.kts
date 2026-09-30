@@ -22,8 +22,8 @@ android {
         applicationId = "fr.mswgillian.simplenoteskeep"
         minSdk = 24
         targetSdk = 36
-        versionCode = 70  // Folder hierarchy and customization
-        versionName = "0.1.9"
+        versionCode = 71  // Folder drag and drawer lock
+        versionName = "0.1.10"
 
         // APK-Size: nur tatsächlich gepflegte Locales ausliefern. AndroidX/Material/
         // Compose schleppen sonst ~70+ Sprachvarianten in resources.arsc mit. Geräte

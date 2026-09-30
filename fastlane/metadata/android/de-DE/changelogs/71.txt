@@ -1,0 +1,1 @@
+40 Ordnersymbole. Ordner per langem Druck auf einen Griff verschieben. Schubladensperre verhindert versehentliches Verschieben und ist standardmäßig aktiv.

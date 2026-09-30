@@ -1,0 +1,1 @@
+40 folder icons. Hold a handle to drag and reorder folders. Drawer locking prevents accidental moves and is enabled by default. Lock choice is saved on this device.

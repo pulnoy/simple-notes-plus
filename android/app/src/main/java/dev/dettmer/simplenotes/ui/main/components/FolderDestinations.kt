@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,11 +25,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,9 +50,17 @@ private const val DRAWER_INDENT_DP = 12
 @Composable
 fun FolderDestinations(
     folders: List<Folder>, currentFolder: String?, actions: HomeFolderActions,
-    modifier: Modifier = Modifier, highlightAll: Boolean = false
+    modifier: Modifier = Modifier, highlightAll: Boolean = false, reorderEnabled: Boolean = false
 ) {
-    LazyColumn(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val list = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val drag = remember(list) { FolderDragState(list, scope) }
+    DisposableEffect(reorderEnabled) {
+        drag.cancel()
+        onDispose { drag.cancel() }
+    }
+    LazyColumn(modifier.padding(horizontal = 16.dp).onGloballyPositioned { drag.listCoordinates = it },
+        state = list, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             FolderDestination(stringResource(R.string.home_all_notes), highlightAll && currentFolder == null,
                 { actions.select(null) })
@@ -54,8 +68,12 @@ fun FolderDestinations(
         items(if (highlightAll) folders.folderTree() else folders.map { it to 0 }, key = { it.first.name }) { (folder, depth) ->
             val siblings = folders.childrenOf(folder.parentName)
             val index = siblings.indexOfFirst { it.name == folder.name }
-            FolderDestination(folder.name, currentFolder == folder.name, { actions.select(folder.name) }, actions,
-                folder, depth, index > 0, index < siblings.lastIndex)
+            FolderDestination(folder.name, currentFolder == folder.name || drag.target == folder.name,
+                { actions.select(folder.name) }, actions, folder, depth,
+                (index > 0 && (!highlightAll || reorderEnabled)) to (index < siblings.lastIndex && (!highlightAll || reorderEnabled)),
+                Modifier.animateItem().zIndex(if (drag.source == folder.name) 1f else 0f)
+                    .graphicsLayer { translationY = drag.translation(folder.name) },
+                { if (reorderEnabled) FolderDragHandle(folder.name, drag, folders, actions.move) })
         }
         item {
             Surface(onClick = actions.add, shape = RoundedCornerShape(16.dp),
@@ -73,7 +91,8 @@ fun FolderDestinations(
 @Composable
 private fun FolderDestination(
     name: String, selected: Boolean, onClick: () -> Unit, actions: HomeFolderActions? = null,
-    folder: Folder? = null, depth: Int = 0, canMoveUp: Boolean = false, canMoveDown: Boolean = false
+    folder: Folder? = null, depth: Int = 0, movement: Pair<Boolean, Boolean> = false to false,
+    modifier: Modifier = Modifier, dragHandle: @Composable () -> Unit = {}
 ) {
     var menu by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
@@ -81,7 +100,7 @@ private fun FolderDestination(
     val background = NoteColorPalette.resolveContainer(folder?.color, dark).takeOrElse {
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     }
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth()
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth()
         .padding(start = (depth.coerceAtMost(MAX_DRAWER_DEPTH) * DRAWER_INDENT_DP).dp)
         .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
         .testTag("home_folder_$name"),
@@ -92,6 +111,7 @@ private fun FolderDestination(
             Icon(folderIcon(folder?.icon), null, tint = MaterialTheme.colorScheme.onSurface)
             Text(name, modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
+            dragHandle()
             if (actions != null) Box {
                 IconButton(onClick = { menu = true }) {
                     Icon(Icons.Default.MoreVert, stringResource(R.string.home_folder_menu, name))
@@ -101,9 +121,9 @@ private fun FolderDestination(
                         onClick = { menu = false; actions.addChild(name) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.folder_customize)) },
                         onClick = { menu = false; actions.customize(name) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.folder_move_up)) }, enabled = canMoveUp,
+                    DropdownMenuItem(text = { Text(stringResource(R.string.folder_move_up)) }, enabled = movement.first,
                         onClick = { menu = false; actions.move(name, -1) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.folder_move_down)) }, enabled = canMoveDown,
+                    DropdownMenuItem(text = { Text(stringResource(R.string.folder_move_down)) }, enabled = movement.second,
                         onClick = { menu = false; actions.move(name, 1) })
                     DropdownMenuItem(text = { Text(stringResource(R.string.home_rename)) },
                         onClick = { menu = false; actions.rename(name) })
