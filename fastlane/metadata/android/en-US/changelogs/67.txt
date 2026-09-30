@@ -1,0 +1,1 @@
+Warm cream and yellow home screen. Always-visible search and editable folder chips. Photo thumbnails and voice memo playback directly in cards. Based on version 0.1.4; preserves existing notes and Drive synchronization.

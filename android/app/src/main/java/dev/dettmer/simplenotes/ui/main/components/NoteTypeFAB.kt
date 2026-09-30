@@ -211,8 +211,10 @@ fun NoteTypeFAB(
             // Main FAB
             FloatingActionButton(
                 onClick = { expanded = !expanded },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = androidx.compose.foundation.shape.CircleShape,
+                modifier = Modifier.size(64.dp),
+                containerColor = dev.dettmer.simplenotes.ui.theme.SunnyColors.Yellow,
+                contentColor = dev.dettmer.simplenotes.ui.theme.SunnyColors.Ink,
                 // 🆕 v1.10.0-P2: Stronger shadow so FAB floats clearly above note cards
                 elevation = FloatingActionButtonDefaults.elevation(
                     defaultElevation = 8.dp,
@@ -228,7 +230,7 @@ fun NoteTypeFAB(
                     } else {
                         stringResource(R.string.fab_new_note)
                     },
-                    modifier = Modifier.rotate(rotation)
+                    modifier = Modifier.size(36.dp).rotate(rotation)
                 )
             }
         }

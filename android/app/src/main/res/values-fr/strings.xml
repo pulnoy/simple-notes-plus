@@ -7,7 +7,7 @@
     <string name="action_toggle_pin">Épingler/Désingler</string>
     <string name="selection_count">%d sélectionnés</string>
     <string name="section_pinned">Épinglées</string>
-    <string name="section_notes">Notes</string>
+    <string name="section_notes">Mes notes</string>
     <string name="action_collapse_section">Réduire %1$s</string>
     <string name="action_expand_section">Développer %1$s</string>
     <string name="action_move_section_up">Déplacer vers le haut</string>

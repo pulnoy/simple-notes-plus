@@ -1,0 +1,18 @@
+<resources>
+    <string name="home_all_notes">All</string>
+    <string name="home_personal">Personal</string>
+    <string name="home_search">Search a note</string>
+    <string name="home_clear_search">Clear search</string>
+    <string name="home_folder_menu">Manage folder %1$s</string>
+    <string name="home_rename">Rename</string>
+    <string name="home_delete_folder">Delete folder</string>
+    <string name="home_delete_keep_notes">Delete “%1$s”? Its notes will be kept in All. You can undo this action.</string>
+    <string name="home_voice_memo">Voice memo</string>
+    <string name="home_note_actions">Select note and show actions</string>
+    <string name="home_photo_pending">Photo unavailable or waiting for sync</string>
+    <string name="home_photo_preview">Note photo preview</string>
+    <string name="home_play_audio">Play voice memo</string>
+    <string name="home_pause_audio">Pause voice memo</string>
+    <string name="home_audio_pending">Waiting for audio sync</string>
+    <string name="home_audio_unavailable">Audio playback unavailable</string>
+</resources>

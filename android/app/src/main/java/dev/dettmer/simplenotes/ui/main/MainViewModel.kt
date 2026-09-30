@@ -675,7 +675,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 🆕 v2.7.0 (Folders): Notizen der aktuell sichtbaren Ordner-Ansicht (sortiert/gefiltert). */
     private fun notesInCurrentFolder(): List<Note> =
-        if (_showArchived.value || _searchActive.value) {
+        if (_showArchived.value || _currentFolder.value == null) {
             // 🆕 v2.11.0 (Archive) / 🆕 v2.16.0 (#141, Suche): flache Liste über alle Ordner
             sortedNotesUnfoldered.value
         } else {
@@ -686,11 +686,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectAll() {
         _selectedNotes.value = notesInCurrentFolder().map { it.id }.toSet()
         // 🆕 v2.16.0 (#141): während einer Suche zeigt die Pane keine Ordner-Kacheln → keine mitauswählen
-        _selectedFolders.value = if (_currentFolder.value == null && !_showArchived.value && !_searchActive.value) {
-            _folders.value.map { it.name }.toSet()
-        } else {
-            emptySet()
-        }
+        _selectedFolders.value = emptySet()
     }
 
     /** 🆕 v2.7.0 (Folders): Ordner-Auswahl toggeln. */
@@ -1557,6 +1553,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _folders.value = folderStore.loadFolders()
             if (!markLocalOnly) triggerOnSaveSync()
+        }
+    }
+
+    /** Seed only once on an empty installation; a deleted starter folder stays deleted. */
+    fun ensureStarterFolder() {
+        if (prefs.getBoolean("sunny_home_folder_seeded", false)) return
+        viewModelScope.launch {
+            withContext(ioDispatcher) {
+                if (folderStore.loadFolders().isEmpty()) {
+                    folderStore.addFolder(getString(R.string.home_personal), dirty = true)
+                }
+            }
+            _folders.value = folderStore.loadFolders()
+            prefs.edit { putBoolean("sunny_home_folder_seeded", true) }
+            triggerOnSaveSync()
         }
     }
 

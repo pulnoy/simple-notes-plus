@@ -1,0 +1,1 @@
+Neue warme Startseite mit Creme- und Gelbtönen, Suche und bearbeitbaren Ordnern. Bildvorschau und Audiowiedergabe direkt in den Notizkarten. Auf Basis von 0.1.4; bestehende Notizen und Drive-Synchronisierung bleiben erhalten.

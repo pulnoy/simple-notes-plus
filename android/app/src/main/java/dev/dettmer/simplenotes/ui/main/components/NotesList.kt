@@ -124,7 +124,7 @@ fun NotesList(
                         }
                         if (SECTION_PINNED !in collapsedSections) {
                             items(items = pinnedNotes, key = { it.id }, contentType = { "PinnedNoteCard" }) { note ->
-                                NoteCard(
+                                NoteCardGrid(
                                     note = note,
                                     showSyncStatus = showSyncStatus,
                                     isSelected = note.id in selectedNotes,
@@ -198,7 +198,7 @@ fun NotesList(
                     }
                     if (SECTION_NOTES !in collapsedSections) {
                         items(items = unpinnedNotes, key = { it.id }, contentType = { "NoteCard" }) { note ->
-                            NoteCard(
+                            NoteCardGrid(
                                 note = note,
                                 showSyncStatus = showSyncStatus,
                                 isSelected = note.id in selectedNotes,
@@ -248,10 +248,11 @@ internal fun SectionHeaderText(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth()
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth().padding(end = 48.dp)
         )
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
             Box(
